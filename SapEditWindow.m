@@ -9,10 +9,10 @@ classdef SapEditWindow < LineEditWindow
          function o = SapEditWindow()
             o@LineEditWindow();
 
-            o.addButton('panLeft', '< pan', 'leftarrow', 'pan focus area left ("<-")', 1, 1, @(~,~)o.mz.pan(-0.8));
-            o.addButton('panRight', 'pan >', 'rightarrow', 'pan focus area right ("->")', 2, 1, @(~,~)o.mz.pan(+0.8));
-            o.addButton('zoomIn', 'zoom in', 'add', 'narrow focus area duration ("+")', 1, 2, @(~,~)o.mz.zoom(0.8));
-            o.addButton('zoomOut', 'zoom out', 'subtract', 'expand focus area duration ("-")', 2, 2, @(~,~)o.mz.zoom(1.25));
+            o.addButton('panLeft', '< pan', 'leftarrow', 'pan focus area left ("<-")', 1, 1, @(~,~)o.zoomer.pan(-0.8));
+            o.addButton('panRight', 'pan >', 'rightarrow', 'pan focus area right ("->")', 2, 1, @(~,~)o.zoomer.pan(+0.8));
+            o.addButton('zoomIn', 'zoom in', 'add', 'narrow focus area duration ("+")', 1, 2, @(~,~)o.zoomer.zoom(0.8));
+            o.addButton('zoomOut', 'zoom out', 'subtract', 'expand focus area duration ("-")', 2, 2, @(~,~)o.zoomer.zoom(1.25));
             o.addButton('zoomReg', 'zoom sel', 'z', 'zoom to selection', 1, 3, @o.zoomtoRegion);
             o.addButton('selRaw', 'sel raw', 'r', 'select enclosed raw values', 1, 4, @o.selectRaw);
             o.addButton('selBla', 'sel baseline', 'b', 'select enclosed baseline anchors', 1, 5, @o.selectBla);
@@ -140,7 +140,7 @@ classdef SapEditWindow < LineEditWindow
         function o = zoomtoRegion(o, ~, ~)
             o.plots.select.Visible = 'Off';
             o.disableCommands({'zoomReg', 'selRaw', 'selBla'});
-            o.mz.zoomToRange(1, o.selection.xRange, o.selection.yRange);
+            o.zoomer.zoomToRange(1, o.selection.xRange, o.selection.yRange);
         end
 
 

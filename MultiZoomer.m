@@ -15,25 +15,14 @@ classdef MultiZoomer < handle
             o.figure = s.figure;
             o.fullPlots = s.fullPlots;
             o.zoomPlots = s.zoomPlots;
-            %o.yLimits = s.yLimits;
-            %o.xLimit = s.xLimit;
-            %o.xZoom = s.xZoom;
             o.figure.WindowScrollWheelFcn = @o.wheelCallback;
-            %x1 = o.xZoom(1);
-            %x2 = o.xZoom(2);
             o.plotPairs = length(o.fullPlots);
             for i = 1:o.plotPairs
                 fp = o.fullPlots{i};
-                %fp.XLim = o.xLimit;
-                %fp.YLim = o.yLimits{i};
                 fp.ButtonDownFcn = @o.buttDownFullAxis;
                 for j = 1:length(fp.Children)
                     fp.Children(j).HitTest = 'off';
                 end
-                %o.zoomPlots{i}.XLim = o.xZoom;
-                %o.zoomPlots{i}.YLim = o.yLimits{i};
-                %y1 = o.yLimits{i}(1);
-                %y2 = o.yLimits{1}(2);
             end
         end
 
