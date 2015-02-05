@@ -52,7 +52,7 @@ classdef LineEditWindow < handle
             s.figure = o.myFig;
             s.fullPlots = {o.myAxes.dtFull, o.myAxes.kFull};
             s.zoomPlots = {o.myAxes.dtZoom, o.myAxes.kZoom};
-            o.mz = MontyZoomer(s);
+            o.mz = MultiZoomer(s);
 
             o.myFig.KeyPressFcn = @o.handleKeypress;
 

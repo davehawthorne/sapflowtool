@@ -1,4 +1,4 @@
-classdef MontyZoomer < handle
+classdef MultiZoomer < handle
     properties
         figure
         fullPlots
@@ -11,7 +11,7 @@ classdef MontyZoomer < handle
     end
 
     methods (Access = public)
-        function o = MontyZoomer(s)
+        function o = MultiZoomer(s)
             o.figure = s.figure;
             o.fullPlots = s.fullPlots;
             o.zoomPlots = s.zoomPlots;
