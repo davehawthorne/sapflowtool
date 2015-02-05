@@ -8,7 +8,7 @@ classdef SapEditWindow < LineEditWindow
     methods (Access = public)
          function o = SapEditWindow()
             o@LineEditWindow();
-            
+
             o.addButton('panLeft', '< pan', 'leftarrow', 'pan focus area left ("<-")', 1, 1, @(~,~)o.mz.pan(-0.8));
             o.addButton('panRight', 'pan >', 'rightarrow', 'pan focus area right ("->")', 2, 1, @(~,~)o.mz.pan(+0.8));
             o.addButton('zoomIn', 'zoom in', 'add', 'narrow focus area duration ("+")', 1, 2, @(~,~)o.mz.zoom(0.8));
@@ -20,7 +20,7 @@ classdef SapEditWindow < LineEditWindow
             o.addButton('delRaw', 'delete raw', 'd', 'delete raw', 2, 7, @o.delRaw);
 
             o.plots = struct();
-            
+
             o.plots.sapflowAll = o.createEmptyPlot('dtFull',  'b-');
             o.plots.sapflow    = o.createEmptyPlot('dtZoom',  'b-');
             o.plots.spbl       = o.createEmptyPlot('dtZoom',  'g.');
@@ -38,7 +38,7 @@ classdef SapEditWindow < LineEditWindow
             o.plots.edit       = o.createEmptyPlot('dtZoom',  'bo');
             o.plots.select     = o.createEmptyPoly('dtZoom',  'y', 0.3);
 
-            
+
             [year, par, vpd, sf, doy, tod] = loadRawSapflowData('little.csv', 2012);
 
             sf = cleanRawFluxData(sf);
@@ -48,7 +48,7 @@ classdef SapEditWindow < LineEditWindow
             par = processPar(par, tod);
 
             o.sfa = SapflowProcessor(doy, tod, vpd, par, ss);
-            
+
             o.sfa.baselineCallback = @o.baselineUpdated;
             o.sfa.sapflowCallback = @o.sapflowUpdated;
 
@@ -57,46 +57,46 @@ classdef SapEditWindow < LineEditWindow
             o.sfa.compute();
 
             o.setLimits([1, o.sfa.ssL], {[0, max(o.sfa.ss)], [0, 1]});
-            
+
             o.setXData(1:o.sfa.ssL);
-            
+
             o.baselineUpdated();
             o.sapflowUpdated();
-            
+
             for name = {'bla', 'blaAll', 'sapflowAll', 'sapflow', 'spbl', 'zvbl', 'lzvbl', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
                 o.plots.(name{1}).Visible = 'On';
             end
-            
+
             o.myAxes.dtZoom.ButtonDownFcn = @o.selectDtArea;
-            
+
             o.plots.bla.ButtonDownFcn = @o.markerClick;
             o.plots.sapflow.ButtonDownFcn = @o.markerClick;
             o.plots.spbl.ButtonDownFcn = @o.markerClick;
             o.plots.zvbl.ButtonDownFcn = @o.markerClick;
             o.plots.lzvbl.ButtonDownFcn = @o.markerClick;
-            
+
             o.enableCommands({'panLeft', 'panRight', 'zoomIn', 'zoomOut', 'undo'});
             o.enableCommands({'delRaw'});  %%TEMP!!!
-            
+
          end
 
     end
     methods (Access = private)
-        
+
         function o = sapflowUpdated(o)
             o.plots.sapflowAll.YData = o.sfa.ss;
             o.plots.sapflow.YData = o.sfa.ss;
 
             o.plots.spbl.XData = o.sfa.spbl;
             o.plots.spbl.YData = o.sfa.ss(o.sfa.spbl);
-            
+
             o.plots.zvbl.XData = o.sfa.zvbl;
             o.plots.zvbl.YData = o.sfa.ss(o.sfa.zvbl);
 
             o.plots.lzvbl.XData = o.sfa.lzvbl;
             o.plots.lzvbl.YData = o.sfa.ss(o.sfa.lzvbl);
         end
-           
+
         function o = baselineUpdated(o)
             o.plots.blaAll.XData = o.sfa.bla;
             o.plots.blaAll.YData = o.sfa.ss(o.sfa.bla);
@@ -109,7 +109,7 @@ classdef SapEditWindow < LineEditWindow
             o.plots.kaLineAll.YData = o.sfa.ka_line;
             o.plots.nvpd.YData = o.sfa.nvpd;
         end
-        
+
         function o = selectPointsInRegion(o, x, y)
             o.plots.select.Visible = 'Off';
             o.disableCommands({'zoomReg', 'selRaw', 'selBla'});
@@ -119,31 +119,31 @@ classdef SapEditWindow < LineEditWindow
             o.plots.edit.XData = x(range);
             o.plots.edit.YData = y(range);
             o.selected = x(range);
-            
+
             o.plots.edit.Visible = 'on';
         end
-            
-        
+
+
         function o = selectRaw(o, ~, ~)
             o.selectPointsInRegion(o.plots.sapflow.XData, o.plots.sapflow.YData);
-        end 
-            
+        end
+
         function o = selectBla(o, ~, ~)
             o.selectPointsInRegion(o.plots.bla.XData, o.plots.bla.YData);
-        end 
-            
+        end
+
         function o = delRaw(o, ~, ~)
             o.plots.edit.Visible = 'Off';
             o.sfa.delSapflow(o.selected);
         end
-        
+
         function o = zoomtoRegion(o, ~, ~)
             o.plots.select.Visible = 'Off';
             o.disableCommands({'zoomReg', 'selRaw', 'selBla'});
             o.mz.zoomToRange(1, o.selection.xRange, o.selection.yRange);
         end
-            
-            
+
+
         function o = selectDtArea(o, axes, ~)
             o.plots.select.Visible = 'Off';
             p1 = axes.CurrentPoint();
@@ -156,7 +156,7 @@ classdef SapEditWindow < LineEditWindow
             o.plots.select.Visible = 'On';
             o.enableCommands({'zoomReg', 'selRaw', 'selBla'});
         end
-        
+
         function o = markerClick(o, line, ~)
             axes = o.myAxes.dtZoom;
             ratio = axes.DataAspectRatio;
@@ -174,15 +174,15 @@ classdef SapEditWindow < LineEditWindow
             o.plots.edit.XData = xd(ii(i));
             o.plots.edit.YData = yd(ii(i));
             o.plots.edit.Visible = 'On';
-            
+
             o.sfa.addBaseline(xd(ii(i)));
-            
-            
-            
+
+
+
         end
 
-        
-           
+
+
         function o = setXData(o, xData)
             for name = {'sapflowAll', 'sapflow', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
                 o.plots.(name{1}).XData = xData;

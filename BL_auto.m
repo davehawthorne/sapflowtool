@@ -66,4 +66,3 @@ function [spbl lspbl zvbl lzvbl]=BL_auto(xSensor,DOY,xDOY,Timestep,PAR,PARthresh
         end
     end
 end
-    

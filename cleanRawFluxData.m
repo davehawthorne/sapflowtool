@@ -40,6 +40,6 @@ function sf = cleanRawFluxData(sf)
             end
         end
     end
-    
+
 end
 

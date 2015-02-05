@@ -9,7 +9,7 @@ classdef MontyZoomer < handle
         xZoom
         plotPairs
     end
-    
+
     methods (Access = public)
         function o = MontyZoomer(s)
             o.figure = s.figure;
@@ -46,13 +46,13 @@ classdef MontyZoomer < handle
                     'b', ...
                     'Parent', fp, ...
                     'FaceAlpha', 0.3, ...
-                    'HitTest', 'off' ... 
+                    'HitTest', 'off' ...
                     );
                 hold(fp, 'off');
             end
         end
-        
-        
+
+
         function o = restoreY(o)
             for i = 1:o.plotPairs
                 yp1 = o.yLimits{i}(1);
@@ -61,7 +61,7 @@ classdef MontyZoomer < handle
                 o.zoomRects{i}.YData = [yp1, yp1, yp2, yp2];
             end
         end
-        
+
         function o = pan(o, dx)
             width = o.xZoom(2) - o.xZoom(1);
             if dx < 0
@@ -75,18 +75,18 @@ classdef MontyZoomer < handle
             end
             o.setXZoom(xp1, xp2);
         end
-        
+
         function o = zoom(o, k)
             xp1 = max(o.xLimit(1), (o.xZoom(1) * (1-k) + o.xZoom(2) * k));
             xp2 = min(o.xLimit(2), (o.xZoom(2) * (1-k) + o.xZoom(1) * k));
             o.setXZoom(xp1, xp2);
         end
-             
+
         function o = zoomToRange(o, i, xr, yr)
             o.setXZoom(xr(1), xr(2));
             o.setYZoom(i, yr);
         end
-        
+
         function o = setLimits(o, s)
             o.xLimit = s.xLimit;
             for i = 1:o.plotPairs
@@ -98,14 +98,14 @@ classdef MontyZoomer < handle
             o.setXZoom(s.xZoom(1), s.xZoom(2));
             o.restoreY();
         end
-        
+
         function o = zoomToBox(o, axes, p1, p2)
             if p1 == p2  % a click
                 xc = p1(1,1);
                 width = o.xZoom(2) - o.xZoom(1);
-                xp1 = max(o.xLimit(1), xc - width / 2); 
-                xp2 = min(xp1 + width, o.xLimit(2)); 
-                xp1 = xp2 - width; 
+                xp1 = max(o.xLimit(1), xc - width / 2);
+                xp2 = min(xp1 + width, o.xLimit(2));
+                xp1 = xp2 - width;
             else
                 xp1 = p1(1,1);
                 xp2 = p2(1,1);
@@ -119,25 +119,25 @@ classdef MontyZoomer < handle
             end
             o.setXZoom(xp1, xp2);
         end
-        
+
         function o = makeZoomer(o, i)
             o.zoomPlots{i}.ButtonDownFcn = @o.buttDownFullAxis;
         end
     end
     methods (Access = private)
-        
+
         function o = buttDownFullAxis(o, axes, ~)
 
             p1 = axes.CurrentPoint();
             rbbox();
             p2 = axes.CurrentPoint();
-            
+
             o.zoomToBox(axes, p1, p2);
         end
-        
-        
+
+
         function a = findAxesWhichMouseIsOn(o)
-            
+
             function a = isMouseOver(p, zone)
                 a = ...
                     (p(1) >= zone(1)) && (p(1) <= zone(1) + zone(3)) && ...
@@ -159,16 +159,16 @@ classdef MontyZoomer < handle
                     return
                 end
             end
-            
+
             % not over any axes
             a = {0};
             return;
-            
+
         end
-            
-            
-            
-       
+
+
+
+
 
         function wheelCallback(o,~,evt)
             mouseLoc = o.findAxesWhichMouseIsOn();
@@ -201,15 +201,15 @@ classdef MontyZoomer < handle
                 xp1 = max(o.xLimit(1), (o.xZoom(1) * (1-k) + o.xZoom(2) * k));
                 xp2 = min(o.xLimit(2), (o.xZoom(2) * (1-k) + o.xZoom(1) * k));
             end
-            
+
             o.setXZoom(xp1, xp2);
         end
- 
+
         function o = setYZoom(o, i, range)
             o.zoomPlots{i}.YLim = range;
             o.zoomRects{i}.YData = range([1, 1, 2, 2]);
         end
-        
+
         function o = setXZoom(o, xp1, xp2)
             o.xZoom = sort([xp1, xp2]);
             for i = 1:o.plotPairs
@@ -219,4 +219,3 @@ classdef MontyZoomer < handle
         end
     end
 end
-    

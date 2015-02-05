@@ -6,38 +6,38 @@ classdef LineEditWindow < handle
     properties (SetAccess = protected, GetAccess = public)
         myFig
         myAxes
-        
+
         back, forward, nextSensor, prevSensor, zoomOut, zoomIn
-        
+
         buttons, keys
-        
+
         % plots
-        
+
         mz
-        
+
         TEMP
     end
-    
+
     methods (Access = public)
         function o = LineEditWindow()
-            
+
             % Create a figure and axes
             o.myFig = figure('units', 'normalized', 'OuterPosition', [0, 0.05, 1, 0.95], ...
                 'ToolBar', 'none', ...
                 'MenuBar', 'none');  % , ...
                 % 'KeyPressFcn', @o.handleKeypress);
             % 'CloseRequestFcn', @closeConfirm,
-            
-            
+
+
             %%TEMP!!! doesn't work... maximize(myFig); % using 3rd party code - potentially to be deprecated
-            
+
             o.myFig.Units = 'pixels';
             pos = o.myFig.Position;
             xs = pos(3)/25; % width
             ys = pos(4)/25; % height
             o.figPosScaler = [xs, ys, xs, ys];
-            
-             
+
+
             function a = makeAxes(pos)
                 a = axes('Units', 'pixels', 'Parent', o.myFig, 'Position', pos .* o.figPosScaler);
                 hold(a, 'on');
@@ -45,29 +45,29 @@ classdef LineEditWindow < handle
 
             o.myAxes.dtFull = makeAxes([1, 22, 23, 2]);
             o.myAxes.kFull =  makeAxes([1, 19, 23, 2]);
-            
+
             o.myAxes.dtZoom =  makeAxes([1, 10, 17, 8]);
             o.myAxes.kZoom =  makeAxes([1, 1, 17, 8]);
-            
+
             s.figure = o.myFig;
             s.fullPlots = {o.myAxes.dtFull, o.myAxes.kFull};
             s.zoomPlots = {o.myAxes.dtZoom, o.myAxes.kZoom};
             o.mz = MontyZoomer(s);
 
             o.myFig.KeyPressFcn = @o.handleKeypress;
-            
+
             o.mz.makeZoomer(2);
-            
+
             %TEMP!!! o.plots = struct();
-            
-            
+
+
         end
-        
-        
+
+
         function plotHandle = createEmptyPlot(o, axesName, style)
             plotHandle = plot(o.myAxes.(axesName), 0, 0, style, 'Visible', 'Off');
         end
- 
+
         function polyHandle = createEmptyPoly(o, axesName, color, alpha)
             polyHandle = fill( ...
                 [0, 0, 0, 0], [0, 0, 0, 0], ...
@@ -79,8 +79,8 @@ classdef LineEditWindow < handle
                 'HitTest', 'off' ...
             );
         end
-        
-        
+
+
 
         function o = setLimits(o, xLimit, yLimits)
             o.mz.createZoomBoxes();  %TEMP!!!
@@ -89,12 +89,12 @@ classdef LineEditWindow < handle
             s.xZoom = [xLimit(1), xLimit(2)/10];
             o.mz.setLimits(s);
         end
-        
-            
+
+
     end
-    
+
     methods (Access = protected)
-        
+
         function closeConfirm(o, ~, ~)
             selection = questdlg('Close This Application?',...
                 'Close Request Function',...
@@ -106,10 +106,10 @@ classdef LineEditWindow < handle
                     return
             end
         end
-        
-        
 
-        
+
+
+
         function o = addButton(o, name, text, key, toolTip, x, y, callback)
             o.buttons.(name) = uicontrol( ...
                 'Parent', o.myFig, ...
@@ -123,7 +123,7 @@ classdef LineEditWindow < handle
                 'Key', key, 'Enable', 0, 'Callback', callback ...
             );
         end
-        
+
         function handleKeypress(o, ~, event)
             key = event.Key;
             if isempty(o.keys)
@@ -139,15 +139,15 @@ classdef LineEditWindow < handle
             end
             missed = event.Key
         end
-        
-        
+
+
         function o = disableCommands(o, names)
             for name = names
                 o.keys.(name{1}).Enable = 0;
                 o.buttons.(name{1}).Enable = 'Off';
             end
         end
-        
+
         function o = enableCommands(o, names)
             for name = names
                 o.keys.(name{1}).Enable = 1;
