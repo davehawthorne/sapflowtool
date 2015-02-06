@@ -1,7 +1,7 @@
 classdef LineEditWindow < handle
     % A base class for GUI tools that allow editing of linear data.
     %
-    % Provides two pairs of axes, one pair are to display the entire
+    % Provides two pairs of charts, one pair are to display the entire
     % length of data, the other pair show a zoomed in section. An area of
     % the window is reserved for child defined buttons. The logic for
     % zooming in on data is provided by the MultiZoomer class.
@@ -18,18 +18,18 @@ classdef LineEditWindow < handle
     end
 
     properties (Access = protected)
-        myAxes = struct() % A structure containing the axes in figure.
+        charts = struct() % A structure containing the charts in figure.
         zoomer % The multiZoomer object used in this figure.
     end
 
     methods (Access = protected)
 
         function o = LineEditWindow()
-            % Constructor creates the figure and places axes.
+            % Constructor creates the figure and places charts.
             %
             %  The figure is sized to fill most of the screen.  It creates
-            %  and positions the axes along the top of the window and down
-            %  the left hand side.  These axes all have their line hold
+            %  and positions the charts along the top of the window and down
+            %  the left hand side.  These charts all have their line hold
             %  states turned on, so that multiple lines can be added.
 
             % Given that MATLAB doesn't support creating maximised windows,
@@ -41,7 +41,7 @@ classdef LineEditWindow < handle
                 'ToolBar', 'none', ...
                 'MenuBar', 'none');
 
-            % To aid in placement of axes and controls, set up a 25 x 25
+            % To aid in placement of charts and controls, set up a 25 x 25
             % gridline for the figure.
             o.figureHnd.Units = 'pixels';
             pos = o.figureHnd.Position;
@@ -49,22 +49,22 @@ classdef LineEditWindow < handle
             ys = pos(4)/25; % height
             o.figPosScaler = [xs, ys, xs, ys];
 
-            % Create the 4 axes
+            % Create the 4 charts
             %TEMP!!! naming sapflow tool specific.
-            o.myAxes.dtFull = o.makeAxes([1, 22, 23, 2]);
-            o.myAxes.kFull =  o.makeAxes([1, 19, 23, 2]);
-            o.myAxes.dtZoom = o.makeAxes([1, 10, 17, 8]);
-            o.myAxes.kZoom =  o.makeAxes([1, 1, 17, 8]);
+            o.charts.dtFull = o.makeChart([1, 22, 23, 2]);
+            o.charts.kFull =  o.makeChart([1, 19, 23, 2]);
+            o.charts.dtZoom = o.makeChart([1, 10, 17, 8]);
+            o.charts.kZoom =  o.makeChart([1, 1, 17, 8]);
 
-            % Install an object to handle panning and zooming of the axes.
+            % Install an object to handle panning and zooming of the charts.
             s.figure = o.figureHnd;
-            s.fullPlots = {o.myAxes.dtFull, o.myAxes.kFull};
-            s.zoomPlots = {o.myAxes.dtZoom, o.myAxes.kZoom};
+            s.fullCharts = {o.charts.dtFull, o.charts.kFull};
+            s.zoomCharts = {o.charts.dtZoom, o.charts.kZoom};
             o.zoomer = MultiZoomer(s);
 
-            % The second zoomed axes is only used for viewing not editing,
+            % The second zoomed charts is only used for viewing not editing,
             % so treat all mouse clicks in it as pan/zoom instructions.
-            o.zoomer.makeZoomer(2);
+            o.zoomer.handleMouseInput(2);
 
             %
             % All keypresses are handled through this callback.
@@ -72,21 +72,21 @@ classdef LineEditWindow < handle
         end
 
 
-        function plotHandle = createEmptyPlot(o, axesName, style)
+        function plotHandle = createEmptyLine(o, chartName, style)
             % Generate a plot for later population
             %
-            % The plot is attached to axesName and will sport the specified
+            % The plot is attached to chartName and will sport the specified
             % style.
-            plotHandle = plot(o.myAxes.(axesName), 0, 0, style, 'Visible', 'Off');
+            plotHandle = plot(o.charts.(chartName), 0, 0, style, 'Visible', 'Off');
         end
 
 
-        function polyHandle = createEmptyPoly(o, axesName, color, alpha)
+        function polyHandle = createEmptyPoly(o, chartName, color, alpha)
             %TEMP!!! rethink worth of this
             polyHandle = fill( ...
                 [0, 0, 0, 0], [0, 0, 0, 0], ...
                 '', ...
-                'Parent', o.myAxes.(axesName), ...
+                'Parent', o.charts.(chartName), ...
                 'LineWidth', 1, ...
                 'FaceColor', color, ...
                 'FaceAlpha', alpha, ...
@@ -98,7 +98,7 @@ classdef LineEditWindow < handle
 
         function o = setLimits(o, xLimit, yLimits)
             %TEMP!!! rethink
-            o.zoomer.createZoomBoxes();  %TEMP!!!
+            o.zoomer.createZoomAreaIndicators();  %TEMP!!!
             s.xLimit = xLimit;
             s.yLimits = yLimits;
             s.xZoom = [xLimit(1), xLimit(2)/10];
@@ -184,7 +184,7 @@ classdef LineEditWindow < handle
             sprintf('Unhandled key: %s', event.Key)
         end
 
-        function a = makeAxes(o, pos)
+        function a = makeChart(o, pos)
             % Helper function used by constructor.
             a = axes('Units', 'pixels', 'Parent', o.figureHnd, 'Position', pos .* o.figPosScaler);
             hold(a, 'on');
