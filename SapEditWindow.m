@@ -14,7 +14,7 @@ classdef SapEditWindow < LineEditWindow
         sfp  % The SapflowProcessor object for the current sensor data.
     end
 
-    methods (Access = public
+    methods (Access = public)
 
 
          function o = SapEditWindow()
@@ -54,7 +54,7 @@ classdef SapEditWindow < LineEditWindow
             o.lines.nvpd       = o.createEmptyLine('kZoom',  'g-');
 
             o.lines.edit       = o.createEmptyLine('dtZoom',  'bo');
-            o.lines.select     = o.createEmptyPoly('dtZoom',  'y', 0.3);
+            o.lines.select     = o.createEmptyPoly('dtZoom',  'k', 0.3);
 
             %TEMP!!! the following is hardcoded for now...
 
@@ -87,7 +87,7 @@ classdef SapEditWindow < LineEditWindow
                 o.lines.(name{1}).Visible = 'On';
             end
 
-            o.chart.dtZoom.ButtonDownFcn = @o.selectDtArea;
+            o.charts.dtZoom.ButtonDownFcn = @o.selectDtArea;
 
             o.lines.bla.ButtonDownFcn = @o.markerClick;
             o.lines.sapflow.ButtonDownFcn = @o.markerClick;
@@ -208,7 +208,7 @@ classdef SapEditWindow < LineEditWindow
             o.lines.edit.YData = yd(ii(i));
             o.lines.edit.Visible = 'On';
 
-            o.sfp.addBaseline(xd(ii(i)));
+            o.sfp.addBaselineAnchors(xd(ii(i)));
 
         end
 
