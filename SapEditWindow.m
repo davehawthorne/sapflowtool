@@ -32,10 +32,11 @@ classdef SapEditWindow < LineEditWindow
             o.addButton('zoomIn',   'zoom in',       'add',        'narrow focus area duration ("+")', 1, 2, @(~,~)o.zoomer.zoom(0.8));
             o.addButton('zoomOut',  'zoom out',      'subtract',   'expand focus area duration ("-")', 2, 2, @(~,~)o.zoomer.zoom(1.25));
             o.addButton('zoomReg',  'zoom sel',      'z',          'zoom to selection',                1, 3, @o.zoomtoRegion);
-            %TEMP!!! o.addButton('selRaw',   'sel raw',       'r',          'select enclosed raw values',       1, 4, @o.selectRaw);
-            o.addButton('delBla',   'del BL anchor', 'b',          'delete baseline anchors in range (d)', 1, 5, @o.delBla);
-            o.addButton('undo',     'undo last',     'u',          'undo last command',                2, 6, @(~,~)o.sfp.undo());
-            o.addButton('delRaw',   'delete raw',    'd',          'delete raw',                       2, 7, @o.delRaw);
+            o.addButton('delBla',   'del BL anchors','b',          'delete baseline anchors in range (d)', 1, 5, @o.delBla);
+            o.addButton('delRaw',   'delete SF data','d',          'delete selected sapflow data',         1, 7, @o.delRaw);
+            o.addButton('intRaw',   'interpolate SF','i',          'interpolate selected sapflow data',    2, 7, @o.intRaw);
+            o.addButton('anchorBla','anchor BL',     'a',          'anchor baseline to suggested points',  3, 7, @o.anchorBla);
+            o.addButton('undo',     'undo last',     'u',          'undo last command',                    2, 6, @(~,~)o.sfp.undo());
 
             % Specify all the plot lines we'll use.
             o.lines = struct();
@@ -99,7 +100,6 @@ classdef SapEditWindow < LineEditWindow
             o.lines.lzvbl.ButtonDownFcn = @o.markerClick;
 
             o.enableCommands({'panLeft', 'panRight', 'zoomIn', 'zoomOut', 'undo'});
-            o.enableCommands({'delRaw'});  %%TEMP!!!
 
          end
 
@@ -142,31 +142,12 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-%         function o = selectPointsInRegion(o, x, y)
-% 
-%             o.lines.select.Visible = 'Off';
-%             o.disableCommands({'zoomReg', 'delRaw', 'delBla'});
-%             xr = o.selection.xRange;
-%             yr = o.selection.yRange;
-%             range = find(x > xr(1) & x < xr(2) & y > yr(1) & y < yr(2));
-%             o.lines.edit.XData = x(range);
-%             o.lines.edit.YData = y(range);
-%             o.selected = x(range);
-% 
-%             o.lines.edit.Visible = 'on';
-%         end
-
-
-%         function o = selectRaw(o, ~, ~)
-%             o.selectPointsInRegion(o.lines.sapflow.XData, o.lines.sapflow.YData);
-%         end
-
-
         function o = delBla(o, ~, ~)
             o.selectBox.Visible = 'Off';
             i = o.pointsInSelection(o.lines.bla);
             o.sfp.delBaselineAnchors(i);
         end
+
 
         function i = pointsInSelection(o, line)
             x = line.XData;
@@ -174,11 +155,12 @@ classdef SapEditWindow < LineEditWindow
             xr = o.selection.xRange;
             yr = o.selection.yRange;
             i = (x > xr(1) & x < xr(2) & y > yr(1) & y < yr(2));
+            i = i | (isnan(y) & x > xr(1) & x < xr(2));
         end
-        
-            
+
+
         function o = delRaw(o, ~, ~)
-            o.selectBox.Visible = 'Off';
+            o.deselect()
             i = o.pointsInSelection(o.lines.sapflow);
             changes = i - [0,i(1:end-1)];
             regions = [find(changes == 1)', find(changes == -1)'];
@@ -186,13 +168,27 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
+        function o = intRaw(o, ~, ~)
+            o.deselect()
+            i = o.pointsInSelection(o.lines.sapflow);
+            changes = i - [0,i(1:end-1)];
+            regions = [find(changes == 1)', find(changes == -1)'];
+            o.sfp.interpolateSapflow(regions);
+        end
+
+
         function o = zoomtoRegion(o, ~, ~)
-            o.lines.select.Visible = 'Off';
-            o.disableCommands({'zoomReg', 'delRaw', 'delBla'});
+            o.deselect()
             o.zoomer.zoomToRange(1, o.selection.xRange, o.selection.yRange);
         end
 
 
+        function anchorBla(o, ~, ~)
+            o.deselect()
+            i = o.pointsInSelection(o.lines.zvbl);
+            o.sfp.addBaselineAnchors(o.lines.zvbl.XData(i));
+
+        end
         function o = selectDtArea(o, chart, ~)
             p1 = chart.CurrentPoint();
             rbbox();
@@ -202,16 +198,8 @@ classdef SapEditWindow < LineEditWindow
             o.selectBox.XData = o.selection.xRange([1, 2, 2, 1, 1]);
             o.selectBox.YData = o.selection.yRange([1, 1, 2, 2, 1]);
             o.selectBox.Visible = 'On';
-            o.enableCommands({'zoomReg', 'delRaw', 'delBla'});
+            o.enableCommands({'zoomReg', 'delRaw', 'intRaw', 'delBla', 'anchorBla'});
         end
-%             function regions = regionsInRange(x, y, xr, yr)
-%                 x = line.XData
-%                 y = line.YData
-%                 pointsIn = find(x > xr(1) & x < xr(2) & y > yr(1) & y < yr(2));
-%                 changes = pointsIn - [0,pointsIn(1:end-1)]
-%                 regions = [find(changes == 1)', find(changes == -1)'];
-%            
-%        end
 
 
         function o = markerClick(o, line, ~)
@@ -236,13 +224,17 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-
         function o = setXData(o, xData)
             for name = {'sapflowAll', 'sapflow', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
                 o.lines.(name{1}).XData = xData;
             end
         end
 
+
+        function deselect(o)
+            o.selectBox.Visible = 'Off';
+            o.disableCommands({'zoomReg', 'delRaw', 'intRaw', 'delBla', 'anchorBla'});
+        end
 
     end
 end

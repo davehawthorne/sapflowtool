@@ -86,20 +86,21 @@ classdef SapflowProcessor < handle
             %TODO callback to update undo button
         end
 
+
         function o = addBaselineAnchors(o, t)
             % Anchor the baseline to sapflow at the specified times.
             %
             %
 
             o.cmdStack.push({'add baseline anchors', @o.undoBaselineChange, o.bla});
-            o.bla = unique([o.bla; t]);
+            o.bla = unique([o.bla; t']);
             o.compute();
             o.baselineCallback();
         end
 
         function o = delBaselineAnchors(o, i)
             %
-            % i is the 
+            % i is the
             o.cmdStack.push({'delete baseline anchors', @o.undoBaselineChange, o.bla});
             o.bla(i) = [];
             o.compute();
@@ -108,24 +109,11 @@ classdef SapflowProcessor < handle
 
 
         function o = delSapflow(o, regions)
-            [rows,~] = size(regions)
-            blaCutI = [];
-            ssCutSegs = {};
-            
-            for row = 1:rows
-                ts = regions(row,1)
-                te = regions(row,2)
-                i = find(ts <= o.bla & te >= o.bla)
-                blaCutI = [blaCutI, i]
-                
-                ssCutSegs{end+1} = {ts, te, o.ss(ts:te)}
-                o.ss(ts:te) = NaN
-            end
-            o.cmdStack.push({'delete sapflow data', @o.undoSapflowChange, ssCutSegs, o.bla});
-            o.bla(blaCutI) = [];
-            o.compute();
-            o.sapflowCallback();
-            o.baselineCallback();
+            o.modifySapflow(regions, @o.delSapflowSegment, 'delete sapflow data')
+        end
+
+        function o = interpolateSapflow(o, regions)
+            o.modifySapflow(regions, @o.interpSapflowSegment, 'interpolate sapflow data')
         end
 
 
@@ -168,29 +156,74 @@ classdef SapflowProcessor < handle
 
     methods (Access = private)
 
-%         function blaSaved = findAffectedBlas(o, t)
-%             %TEMP!!! replace: the logic is too slow
-%             toDelete = zeros(o.ssL);
-%             toDelete(t) = 1;
-%             i = find(toDelete(o.bla))
-%             blaSaved = o.bla(i)
-%             o.bla(i) = [];
-%         end
-
-
         function o = undoBaselineChange(o, args)
             o.bla = args{1};
             o.compute();
             o.baselineCallback();
         end
 
+
         function o = undoSapflowChange(o, args)
-            [ssCutSeg, blaCut] = args{1:end};
+            [ssCutSeg, o.bla, o.spbl, o.zvbl, o.lzvbl] = args{1:end};
             for seg = ssCutSeg
                 [ts, te, orig] = seg{1}{:};
                 o.ss(ts:te) = orig;
             end
-            o.bla = blaCut;
+
+            o.compute();
+            o.sapflowCallback();
+            o.baselineCallback();
+        end
+
+        function delSapflowSegment(o, ts, te)
+            o.ss(ts:te) = NaN;
+        end
+
+        function interpSapflowSegment(o, ts, te)
+            if ts == 1 || te == o.ssL
+                o.ss(ts:te) = NaN;
+                return
+            end
+            ts = ts - 1;
+            te = te + 1;
+            if not(isfinite(o.ss(ts)) & isfinite(o.ss(ts)))
+                return
+            end
+            o.ss(ts:te) = interp1([ts, te], o.ss([ts,te]), ts:te);
+        end
+
+        function o = modifySapflow(o, regions, segmentCallback, message)
+            blaCutI = [];
+            spblCutI = [];
+            zvblCutI = [];
+            lzvblCutI = [];
+            ssCutSegs = {};
+
+            [rows,~] = size(regions)
+            for row = 1:rows
+                ts = regions(row,1);
+                te = regions(row,2);
+                i = find(ts <= o.bla & te >= o.bla);
+                blaCutI = [blaCutI, i];
+
+                i = find(ts <= o.spbl & te >= o.spbl);
+                spblCutI = [spblCutI, i];
+
+                i = find(ts <= o.zvbl & te >= o.zvbl);
+                zvblCutI = [zvblCutI, i];
+
+                i = find(ts <= o.lzvbl & te >= o.lzvbl);
+                lzvblCutI = [lzvblCutI, i];
+
+                ssCutSegs{end+1} = {ts, te, o.ss(ts:te)};
+
+                segmentCallback(ts, te)
+            end
+            o.cmdStack.push({message, @o.undoSapflowChange, ssCutSegs, o.bla, o.spbl, o.zvbl, o.lzvbl});
+            o.bla(blaCutI) = [];
+            o.spbl(spblCutI) = [];
+            o.zvbl(zvblCutI) = [];
+            o.lzvbl(lzvblCutI) = [];
             o.compute();
             o.sapflowCallback();
             o.baselineCallback();
