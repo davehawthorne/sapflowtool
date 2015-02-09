@@ -128,8 +128,8 @@ classdef MultiZoomer < handle
         function o = zoomToRange(o, chartI, xRange, yRange)
             % xRange and yRange are 1 x 2 arrays will min and max values
             % chartI is the index of the chart in the set.
-            o.setXZoom(xr(1), xr(2));
-            o.setYZoom(chartI, yr);
+            o.setXZoom(xRange(1), xRange(2));
+            o.setYZoom(chartI, yRange);
         end
 
 
