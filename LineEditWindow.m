@@ -147,6 +147,10 @@ classdef LineEditWindow < handle
             end
         end
 
+        function renameCommand(o, name, string)
+            o.buttons.(name).String = string;
+        end
+
     end
 
     methods (Access = private)

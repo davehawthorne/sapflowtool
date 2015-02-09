@@ -75,6 +75,7 @@ classdef SapEditWindow < LineEditWindow
 
             o.sfp.baselineCallback = @o.baselineUpdated;
             o.sfp.sapflowCallback = @o.sapflowUpdated;
+            o.sfp.undoCallback = @o.undoCallback;
 
             o.sfp.auto();
 
@@ -99,7 +100,7 @@ classdef SapEditWindow < LineEditWindow
             o.lines.zvbl.ButtonDownFcn = @o.markerClick;
             o.lines.lzvbl.ButtonDownFcn = @o.markerClick;
 
-            o.enableCommands({'panLeft', 'panRight', 'zoomIn', 'zoomOut', 'undo'});
+            o.enableCommands({'panLeft', 'panRight', 'zoomIn', 'zoomOut'});
 
          end
 
@@ -238,5 +239,14 @@ classdef SapEditWindow < LineEditWindow
             o.disableCommands({'zoomReg', 'delRaw', 'intRaw', 'delBla', 'anchorBla'});
         end
 
+        function undoCallback(o, description)
+            if not(description)
+                o.renameCommand('undo', 'Undo');
+                o.disableCommands({'undo'})
+            else
+                o.renameCommand('undo', strjoin({'Undo', description}));
+                o.enableCommands({'undo'})
+            end
+        end
     end
 end

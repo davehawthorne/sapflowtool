@@ -49,6 +49,11 @@ classdef SapflowProcessor < handle
 
         % External function to call when sapflow data is changed.
         sapflowCallback
+
+        % Called after each command is executed or undo requested.  It is passed a string
+        % describing the last operation that can be undone.  Alternately if
+        % there are no more commands to undo, 0 passed
+        undoCallback
     end
 
     methods
@@ -75,15 +80,21 @@ classdef SapflowProcessor < handle
             % - additional elements are passed as an argument to the
             % function
             if o.cmdStack.isEmpty()
+                o.undoCallback(0)
                 % nothing left to undo
                 return;
             end
 
             cmd = o.cmdStack.pop();
             func = cmd{2};
-            args = cmd(3:end);
+            args = cmd{3};
             func(args);
-            %TODO callback to update undo button
+            if o.cmdStack.isEmpty()
+                o.undoCallback(0)
+            else
+                nextCmd = o.cmdStack.peek();
+                o.undoCallback(nextCmd{1});
+            end
         end
 
 
@@ -92,8 +103,8 @@ classdef SapflowProcessor < handle
             %
             %
 
-            o.cmdStack.push({'add baseline anchors', @o.undoBaselineChange, o.bla});
-            o.bla = unique([o.bla; t']);
+            o.pushCommand('add baseline anchors', @o.undoBaselineChange, o.bla);
+            o.bla = unique([o.bla, t]);
             o.compute();
             o.baselineCallback();
         end
@@ -101,7 +112,7 @@ classdef SapflowProcessor < handle
         function delBaselineAnchors(o, i)
             %
             % i is the
-            o.cmdStack.push({'delete baseline anchors', @o.undoBaselineChange, o.bla});
+            o.pushCommand('delete baseline anchors', @o.undoBaselineChange, o.bla);
             o.bla(i) = [];
             o.compute();
             o.baselineCallback();
@@ -126,6 +137,9 @@ classdef SapflowProcessor < handle
                 o.vpd, o.VPDthresh, o.VPDtime ...
             );
 
+            o.spbl = o.spbl';
+            o.zvbl = o.zvbl';
+            o.lzvbl = o.lzvbl';
             iValidSamples = find(isfinite(o.ss));
             iFirstValid = min(iValidSamples);
             iLastValid = max(iValidSamples);
@@ -136,7 +150,7 @@ classdef SapflowProcessor < handle
                 iLastValid = [];
             end
 
-            o.bla = [iFirstValid; o.lzvbl; iLastValid];
+            o.bla = [iFirstValid, o.lzvbl, iLastValid];
         end
 
         function compute(o)
@@ -157,7 +171,7 @@ classdef SapflowProcessor < handle
     methods (Access = private)
 
         function undoBaselineChange(o, args)
-            o.bla = args{1};
+            o.bla = args;
             o.compute();
             o.baselineCallback();
         end
@@ -199,7 +213,7 @@ classdef SapflowProcessor < handle
             lzvblCutI = [];
             ssCutSegs = {};
 
-            [rows,~] = size(regions)
+            [rows,~] = size(regions);
             for row = 1:rows
                 ts = regions(row,1);
                 te = regions(row,2);
@@ -219,7 +233,7 @@ classdef SapflowProcessor < handle
 
                 segmentCallback(ts, te)
             end
-            o.cmdStack.push({message, @o.undoSapflowChange, ssCutSegs, o.bla, o.spbl, o.zvbl, o.lzvbl});
+            o.pushCommand(message, @o.undoSapflowChange, {ssCutSegs, o.bla, o.spbl, o.zvbl, o.lzvbl});
             o.bla(blaCutI) = [];
             o.spbl(spblCutI) = [];
             o.zvbl(zvblCutI) = [];
@@ -227,6 +241,13 @@ classdef SapflowProcessor < handle
             o.compute();
             o.sapflowCallback();
             o.baselineCallback();
+        end
+
+        function pushCommand(o, description, callback, params)
+            o.cmdStack.push({description, callback, params})
+            if isa(o.undoCallback, 'function_handle')
+                o.undoCallback(description);
+            end
         end
 
 
