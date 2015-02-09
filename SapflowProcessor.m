@@ -99,7 +99,7 @@ classdef SapflowProcessor < handle
 
         function o = delBaselineAnchors(o, i)
             %
-            % i is the
+            % i is the 
             o.cmdStack.push({'delete baseline anchors', @o.undoBaselineChange, o.bla});
             o.bla(i) = [];
             o.compute();
@@ -107,10 +107,22 @@ classdef SapflowProcessor < handle
         end
 
 
-        function o = delSapflow(o, t)
-            blaSaved = o.findAffectedBlas(t)
-            o.cmdStack.push({'delete sapflow data', @o.undoSapflowChange, t, o.ss(t), blaSaved});
-            o.ss(t) = NaN;
+        function o = delSapflow(o, regions)
+            [rows,~] = size(regions)
+            blaCutI = [];
+            ssCutSegs = {};
+            
+            for row = 1:rows
+                ts = regions(row,1)
+                te = regions(row,2)
+                i = find(ts <= o.bla & te >= o.bla)
+                blaCutI = [blaCutI, i]
+                
+                ssCutSegs{end+1} = {ts, te, o.ss(ts:te)}
+                o.ss(ts:te) = NaN
+            end
+            o.cmdStack.push({'delete sapflow data', @o.undoSapflowChange, ssCutSegs, o.bla});
+            o.bla(blaCutI) = [];
             o.compute();
             o.sapflowCallback();
             o.baselineCallback();
@@ -156,14 +168,14 @@ classdef SapflowProcessor < handle
 
     methods (Access = private)
 
-        function blaSaved = findAffectedBlas(o, t)
-            %TEMP!!! replace: the logic is too slow
-            toDelete = zeros(o.ssL);
-            toDelete(t) = 1;
-            i = find(toDelete(o.bla))
-            blaSaved = o.bla(i)
-            o.bla(i) = [];
-        end
+%         function blaSaved = findAffectedBlas(o, t)
+%             %TEMP!!! replace: the logic is too slow
+%             toDelete = zeros(o.ssL);
+%             toDelete(t) = 1;
+%             i = find(toDelete(o.bla))
+%             blaSaved = o.bla(i)
+%             o.bla(i) = [];
+%         end
 
 
         function o = undoBaselineChange(o, args)
@@ -173,9 +185,12 @@ classdef SapflowProcessor < handle
         end
 
         function o = undoSapflowChange(o, args)
-            [t, orig, blaSaved] = args{1:end};
-            o.ss(t) = orig;
-            o.bla = sort([o.bla; blaSaved]);
+            [ssCutSeg, blaCut] = args{1:end};
+            for seg = ssCutSeg
+                [ts, te, orig] = seg{1}{:};
+                o.ss(ts:te) = orig;
+            end
+            o.bla = blaCut;
             o.compute();
             o.sapflowCallback();
             o.baselineCallback();

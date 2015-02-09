@@ -9,7 +9,8 @@ classdef SapEditWindow < LineEditWindow
 
         % structure to hold selected datapoints
         selection  %TEMP!!! rethink logic
-        selected
+        selectBox
+        % selected
 
         sfp  % The SapflowProcessor object for the current sensor data.
     end
@@ -31,8 +32,8 @@ classdef SapEditWindow < LineEditWindow
             o.addButton('zoomIn',   'zoom in',       'add',        'narrow focus area duration ("+")', 1, 2, @(~,~)o.zoomer.zoom(0.8));
             o.addButton('zoomOut',  'zoom out',      'subtract',   'expand focus area duration ("-")', 2, 2, @(~,~)o.zoomer.zoom(1.25));
             o.addButton('zoomReg',  'zoom sel',      'z',          'zoom to selection',                1, 3, @o.zoomtoRegion);
-            o.addButton('selRaw',   'sel raw',       'r',          'select enclosed raw values',       1, 4, @o.selectRaw);
-            o.addButton('selBla',   'sel baseline',  'b',          'select enclosed baseline anchors', 1, 5, @o.selectBla);
+            %TEMP!!! o.addButton('selRaw',   'sel raw',       'r',          'select enclosed raw values',       1, 4, @o.selectRaw);
+            o.addButton('delBla',   'del BL anchor', 'b',          'delete baseline anchors in range (d)', 1, 5, @o.delBla);
             o.addButton('undo',     'undo last',     'u',          'undo last command',                2, 6, @(~,~)o.sfp.undo());
             o.addButton('delRaw',   'delete raw',    'd',          'delete raw',                       2, 7, @o.delRaw);
 
@@ -54,7 +55,9 @@ classdef SapEditWindow < LineEditWindow
             o.lines.nvpd       = o.createEmptyLine('kZoom',  'g-');
 
             o.lines.edit       = o.createEmptyLine('dtZoom',  'bo');
-            o.lines.select     = o.createEmptyPoly('dtZoom',  'k', 0.3);
+            o.selectBox        = o.createEmptyLine('dtZoom',  'k:');
+            %o.selectPoints     = o.createEmptyLine('dtZoom',  'ko');
+            %o.selectLine       = o.createEmptyLine('dtZoom',  'k');
 
             %TEMP!!! the following is hardcoded for now...
 
@@ -139,56 +142,76 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-        function o = selectPointsInRegion(o, x, y)
+%         function o = selectPointsInRegion(o, x, y)
+% 
+%             o.lines.select.Visible = 'Off';
+%             o.disableCommands({'zoomReg', 'delRaw', 'delBla'});
+%             xr = o.selection.xRange;
+%             yr = o.selection.yRange;
+%             range = find(x > xr(1) & x < xr(2) & y > yr(1) & y < yr(2));
+%             o.lines.edit.XData = x(range);
+%             o.lines.edit.YData = y(range);
+%             o.selected = x(range);
+% 
+%             o.lines.edit.Visible = 'on';
+%         end
 
-            o.lines.select.Visible = 'Off';
-            o.disableCommands({'zoomReg', 'selRaw', 'selBla'});
+
+%         function o = selectRaw(o, ~, ~)
+%             o.selectPointsInRegion(o.lines.sapflow.XData, o.lines.sapflow.YData);
+%         end
+
+
+        function o = delBla(o, ~, ~)
+            o.selectBox.Visible = 'Off';
+            i = o.pointsInSelection(o.lines.bla);
+            o.sfp.delBaselineAnchors(i);
+        end
+
+        function i = pointsInSelection(o, line)
+            x = line.XData;
+            y = line.YData;
             xr = o.selection.xRange;
             yr = o.selection.yRange;
-            range = find(x > xr(1) & x < xr(2) & y > yr(1) & y < yr(2));
-            o.lines.edit.XData = x(range);
-            o.lines.edit.YData = y(range);
-            o.selected = x(range);
-
-            o.lines.edit.Visible = 'on';
+            i = (x > xr(1) & x < xr(2) & y > yr(1) & y < yr(2));
         end
-
-
-        function o = selectRaw(o, ~, ~)
-            o.selectPointsInRegion(o.lines.sapflow.XData, o.lines.sapflow.YData);
-        end
-
-
-        function o = selectBla(o, ~, ~)
-            o.selectPointsInRegion(o.lines.bla.XData, o.lines.bla.YData);
-        end
-
-
+        
+            
         function o = delRaw(o, ~, ~)
-            o.lines.edit.Visible = 'Off';
-            o.sfp.delSapflow(o.selected);
+            o.selectBox.Visible = 'Off';
+            i = o.pointsInSelection(o.lines.sapflow);
+            changes = i - [0,i(1:end-1)];
+            regions = [find(changes == 1)', find(changes == -1)'];
+            o.sfp.delSapflow(regions);
         end
 
 
         function o = zoomtoRegion(o, ~, ~)
             o.lines.select.Visible = 'Off';
-            o.disableCommands({'zoomReg', 'selRaw', 'selBla'});
+            o.disableCommands({'zoomReg', 'delRaw', 'delBla'});
             o.zoomer.zoomToRange(1, o.selection.xRange, o.selection.yRange);
         end
 
 
         function o = selectDtArea(o, chart, ~)
-            o.lines.select.Visible = 'Off';
             p1 = chart.CurrentPoint();
             rbbox();
             p2 = chart.CurrentPoint();
             o.selection.xRange = sort([p1(1,1), p2(1,1)]);
             o.selection.yRange = sort([p1(1,2), p2(1,2)]);
-            o.lines.select.XData = o.selection.xRange([1, 2, 2, 1]);
-            o.lines.select.YData = o.selection.yRange([1, 1, 2, 2]);
-            o.lines.select.Visible = 'On';
-            o.enableCommands({'zoomReg', 'selRaw', 'selBla'});
+            o.selectBox.XData = o.selection.xRange([1, 2, 2, 1, 1]);
+            o.selectBox.YData = o.selection.yRange([1, 1, 2, 2, 1]);
+            o.selectBox.Visible = 'On';
+            o.enableCommands({'zoomReg', 'delRaw', 'delBla'});
         end
+%             function regions = regionsInRange(x, y, xr, yr)
+%                 x = line.XData
+%                 y = line.YData
+%                 pointsIn = find(x > xr(1) & x < xr(2) & y > yr(1) & y < yr(2));
+%                 changes = pointsIn - [0,pointsIn(1:end-1)]
+%                 regions = [find(changes == 1)', find(changes == -1)'];
+%            
+%        end
 
 
         function o = markerClick(o, line, ~)
