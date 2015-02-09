@@ -66,7 +66,7 @@ classdef SapflowProcessor < handle
         end
 
 
-        function o = undo(o)
+        function undo(o)
             % Each editing command can be undone one at a time.
 
             % Each entry is a 1 x N cell array containing:
@@ -87,7 +87,7 @@ classdef SapflowProcessor < handle
         end
 
 
-        function o = addBaselineAnchors(o, t)
+        function addBaselineAnchors(o, t)
             % Anchor the baseline to sapflow at the specified times.
             %
             %
@@ -98,7 +98,7 @@ classdef SapflowProcessor < handle
             o.baselineCallback();
         end
 
-        function o = delBaselineAnchors(o, i)
+        function delBaselineAnchors(o, i)
             %
             % i is the
             o.cmdStack.push({'delete baseline anchors', @o.undoBaselineChange, o.bla});
@@ -108,16 +108,16 @@ classdef SapflowProcessor < handle
         end
 
 
-        function o = delSapflow(o, regions)
+        function delSapflow(o, regions)
             o.modifySapflow(regions, @o.delSapflowSegment, 'delete sapflow data')
         end
 
-        function o = interpolateSapflow(o, regions)
+        function interpolateSapflow(o, regions)
             o.modifySapflow(regions, @o.interpSapflowSegment, 'interpolate sapflow data')
         end
 
 
-        function o = auto(o)
+        function auto(o)
             nDOY = o.doy;
             nDOY(o.tod < 1000) = nDOY(o.tod < 1000) - 1;
 
@@ -139,7 +139,7 @@ classdef SapflowProcessor < handle
             o.bla = [iFirstValid; o.lzvbl; iLastValid];
         end
 
-        function o = compute(o)
+        function compute(o)
             blv = interp1(o.zvbl, o.ss(o.zvbl), (1:o.ssL))';
 
             o.k_line = blv ./ o.ss - 1;
@@ -156,14 +156,14 @@ classdef SapflowProcessor < handle
 
     methods (Access = private)
 
-        function o = undoBaselineChange(o, args)
+        function undoBaselineChange(o, args)
             o.bla = args{1};
             o.compute();
             o.baselineCallback();
         end
 
 
-        function o = undoSapflowChange(o, args)
+        function undoSapflowChange(o, args)
             [ssCutSeg, o.bla, o.spbl, o.zvbl, o.lzvbl] = args{1:end};
             for seg = ssCutSeg
                 [ts, te, orig] = seg{1}{:};
@@ -192,7 +192,7 @@ classdef SapflowProcessor < handle
             o.ss(ts:te) = interp1([ts, te], o.ss([ts,te]), ts:te);
         end
 
-        function o = modifySapflow(o, regions, segmentCallback, message)
+        function modifySapflow(o, regions, segmentCallback, message)
             blaCutI = [];
             spblCutI = [];
             zvblCutI = [];

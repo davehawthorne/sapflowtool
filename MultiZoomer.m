@@ -66,7 +66,7 @@ classdef MultiZoomer < handle
         end
 
 
-        function o = createZoomAreaIndicators(o)
+        function createZoomAreaIndicators(o)
             % The overview charts have rectangles showing the zoom chart areas.
             %
             % These are created after the data lines are created so that it
@@ -91,7 +91,7 @@ classdef MultiZoomer < handle
         end
 
 
-        function o = pan(o, dx)
+        function pan(o, dx)
             % Pan the zoomed section left or right
             %
             % dx is the distance to move: +1 shifts right by the full zoom width
@@ -112,7 +112,7 @@ classdef MultiZoomer < handle
         end
 
 
-        function o = zoom(o, k)
+        function zoom(o, k)
             % Zoom the X dimension in or out
             %
             % Keeping the centre of the zoomed section constant.  Respects the
@@ -125,7 +125,7 @@ classdef MultiZoomer < handle
         end
 
 
-        function o = zoomToRange(o, chartI, xRange, yRange)
+        function zoomToRange(o, chartI, xRange, yRange)
             % xRange and yRange are 1 x 2 arrays will min and max values
             % chartI is the index of the chart in the set.
             o.setXZoom(xRange(1), xRange(2));
@@ -133,7 +133,7 @@ classdef MultiZoomer < handle
         end
 
 
-        function o = setLimits(o, s)
+        function setLimits(o, s)
             % Set the extent of the overview charts.
             %
             %TEMP!!! also set max zoom ranges
@@ -149,7 +149,7 @@ classdef MultiZoomer < handle
         end
 
 
-        function o = handleMouseInput(o, chartI)
+        function handleMouseInput(o, chartI)
             % Give control of mouse clicks in a zoom chart to MultiZoomer
             %
             % So that dragging, and clicking control zoom extent.
@@ -163,7 +163,7 @@ classdef MultiZoomer < handle
     methods (Access = private)
 
 
-        function o = zoomToBox(o, chart, p1, p2)
+        function zoomToBox(o, chart, p1, p2)
             if p1 == p2  % a click
                 xc = p1(1,1);
                 width = o.xZoom(2) - o.xZoom(1);
@@ -185,7 +185,7 @@ classdef MultiZoomer < handle
         end
 
 
-        function o = restoreY(o)
+        function restoreY(o)
             for i = 1:o.numChartPairs
                 yp1 = o.yLimits{i}(1);
                 yp2 = o.yLimits{i}(2);
@@ -195,7 +195,7 @@ classdef MultiZoomer < handle
         end
 
 
-        function o = buttDownFullAxis(o, chart, ~)
+        function buttDownFullAxis(o, chart, ~)
 
             p1 = chart.CurrentPoint();
             rbbox();
@@ -272,13 +272,13 @@ classdef MultiZoomer < handle
         end
 
 
-        function o = setYZoom(o, i, range)
+        function setYZoom(o, i, range)
             o.zoomCharts{i}.YLim = range;
             o.locRects{i}.YData = range([1, 1, 2, 2]);
         end
 
 
-        function o = setXZoom(o, xp1, xp2)
+        function setXZoom(o, xp1, xp2)
             o.xZoom = sort([xp1, xp2]);
             for i = 1:o.numChartPairs
                 o.zoomCharts{i}.XLim = o.xZoom;

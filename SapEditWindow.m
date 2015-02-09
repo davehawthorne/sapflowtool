@@ -109,7 +109,7 @@ classdef SapEditWindow < LineEditWindow
     methods (Access = private)
 
 
-        function o = sapflowUpdated(o)
+        function sapflowUpdated(o)
             % The SapflowProcessor calls this when sapflow is changed.
             %
             %TEMP!!! need to rethink/rename the sfp update callbacks
@@ -127,7 +127,7 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-        function o = baselineUpdated(o)
+        function baselineUpdated(o)
             % Callback from SapflowProcessor
             o.lines.blaAll.XData = o.sfp.bla;
             o.lines.blaAll.YData = o.sfp.ss(o.sfp.bla);
@@ -142,7 +142,7 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-        function o = delBla(o, ~, ~)
+        function delBla(o, ~, ~)
             o.selectBox.Visible = 'Off';
             i = o.pointsInSelection(o.lines.bla);
             o.sfp.delBaselineAnchors(i);
@@ -159,7 +159,7 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-        function o = delRaw(o, ~, ~)
+        function delRaw(o, ~, ~)
             o.deselect()
             i = o.pointsInSelection(o.lines.sapflow);
             changes = i - [0,i(1:end-1)];
@@ -168,7 +168,7 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-        function o = intRaw(o, ~, ~)
+        function intRaw(o, ~, ~)
             o.deselect()
             i = o.pointsInSelection(o.lines.sapflow);
             changes = i - [0,i(1:end-1)];
@@ -177,7 +177,7 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-        function o = zoomtoRegion(o, ~, ~)
+        function zoomtoRegion(o, ~, ~)
             o.deselect()
             o.zoomer.zoomToRange(1, o.selection.xRange, o.selection.yRange);
         end
@@ -189,7 +189,9 @@ classdef SapEditWindow < LineEditWindow
             o.sfp.addBaselineAnchors(o.lines.zvbl.XData(i));
 
         end
-        function o = selectDtArea(o, chart, ~)
+
+
+        function selectDtArea(o, chart, ~)
             p1 = chart.CurrentPoint();
             rbbox();
             p2 = chart.CurrentPoint();
@@ -202,7 +204,7 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-        function o = markerClick(o, line, ~)
+        function markerClick(o, line, ~)
             chart = o.charts.dtZoom;
             ratio = chart.DataAspectRatio;
             p = chart.CurrentPoint();
@@ -224,7 +226,7 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-        function o = setXData(o, xData)
+        function setXData(o, xData)
             for name = {'sapflowAll', 'sapflow', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
                 o.lines.(name{1}).XData = xData;
             end

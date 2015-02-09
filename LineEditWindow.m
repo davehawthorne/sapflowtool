@@ -81,7 +81,7 @@ classdef LineEditWindow < handle
         end
 
 
-        function o = setLimits(o, xLimit, yLimits)
+        function setLimits(o, xLimit, yLimits)
             %TEMP!!! rethink
             o.zoomer.createZoomAreaIndicators();  %TEMP!!!
             s.xLimit = xLimit;
@@ -91,7 +91,7 @@ classdef LineEditWindow < handle
         end
 
 
-        function o = addButton(o, name, text, key, toolTip, col, row, callback)
+        function addButton(o, name, text, key, toolTip, col, row, callback)
             % Creates a button and corresponding keyboard shortcut
             %
             % The button is located in the figure's button region.
@@ -123,7 +123,7 @@ classdef LineEditWindow < handle
         end
 
 
-        function o = disableCommands(o, names)
+        function disableCommands(o, names)
             % Greys out specified buttons
             %
             % Where names is a 1 x N cell array of strings corresponding
@@ -139,7 +139,7 @@ classdef LineEditWindow < handle
             end
         end
 
-        function o = enableCommands(o, names)
+        function enableCommands(o, names)
             % The counterpart to disableCommands
             for name = names
                 o.keys.(name{1}).Enable = 1;
