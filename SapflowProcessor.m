@@ -71,6 +71,16 @@ classdef SapflowProcessor < handle
             o.cmdStack = Stack(); % Used for undoing commands.
         end
 
+        function setup(o)
+            % Called each time this SFP gets focus
+            if o.cmdStack.isEmpty()
+                o.undoCallback(0)
+            else
+                nextCmd = o.cmdStack.peek();
+                o.undoCallback(nextCmd{1});
+            end
+
+        end
 
         function undo(o)
             % Each editing command can be undone one at a time.

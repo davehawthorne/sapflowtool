@@ -11,13 +11,15 @@ classdef LineEditWindow < handle
 
     properties (Access = private)
         figPosScaler % a 1 x 4 array used for placement in figure.
-        figureHnd % the 1 figure used.
 
         buttons = struct(); % handles to uicontrols: built by addButton
         keys = struct(); % one to one mapping with buttons: built by addButton
+
+        statusBar  % a text UI Control accessed with updateDisplay()
     end
 
     properties (Access = protected)
+        figureHnd % the 1 figure used.
         charts = struct() % A structure containing the charts in figure.
         zoomer % The multiZoomer object used in this figure.
     end
@@ -56,6 +58,14 @@ classdef LineEditWindow < handle
             o.charts.dtZoom = o.makeChart([1, 10, 17, 8]);
             o.charts.kZoom =  o.makeChart([1, 1, 17, 8]);
 
+            o.statusBar = uicontrol( ...
+                'Parent', o.figureHnd, ...
+                'Style', 'edit', 'String', '',...
+                'Position', o.figPosScaler .* [1 * 1.75 + 17.5, 1, 1.5+2*1.75, 0.8], ...
+                'Enable', 'Off' ...
+            );
+
+
             % Install an object to handle panning and zooming of the charts.
             s.figure = o.figureHnd;
             s.fullCharts = {o.charts.dtFull, o.charts.kFull};
@@ -81,16 +91,6 @@ classdef LineEditWindow < handle
         end
 
 
-        function setLimits(o, xLimit, yLimits)
-            %TEMP!!! rethink
-            o.zoomer.createZoomAreaIndicators();  %TEMP!!!
-            s.xLimit = xLimit;
-            s.yLimits = yLimits;
-            s.xZoom = [xLimit(1), xLimit(2)/10];
-            o.zoomer.setLimits(s);
-        end
-
-
         function addButton(o, name, text, key, toolTip, col, row, callback)
             % Creates a button and corresponding keyboard shortcut
             %
@@ -113,7 +113,7 @@ classdef LineEditWindow < handle
                 'Parent', o.figureHnd, ...
                 'Style', 'pushbutton', 'String', text,...
                 'Callback', callback, ...
-                'Position', o.figPosScaler .* [col * 1.75 + 17.5, row, 1.5, 0.8], ...
+                'Position', o.figPosScaler .* [col * 1.75 + 17.5, row + 1, 1.5, 0.8], ...
                 'TooltipString', toolTip, ...
                 'Enable', 'Off' ...
             );
@@ -128,11 +128,17 @@ classdef LineEditWindow < handle
             %
             % Where names is a 1 x N cell array of strings corresponding
             % with the controls to turn off.  These are the names passed to
-            % addButton()
+            % addButton().
+            %
+            % If names is empty then all commands are disabled.
             %
             % see also: enableCommands
 
             %TEMP!!! naming inconsistent with addButton()
+            if isempty(names)
+                % select all
+                names = fieldnames(o.keys)
+            end
             for name = names
                 o.keys.(name{1}).Enable = 0;
                 o.buttons.(name{1}).Enable = 'Off';
@@ -149,6 +155,12 @@ classdef LineEditWindow < handle
 
         function renameCommand(o, name, string)
             o.buttons.(name).String = string;
+        end
+
+        function reportStatus(o, format, varargin)
+            % Updates the status bar
+            o.statusBar.String = sprintf(format, varargin{:});
+            drawnow();
         end
 
     end

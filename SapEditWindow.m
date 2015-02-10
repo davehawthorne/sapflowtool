@@ -13,6 +13,10 @@ classdef SapEditWindow < LineEditWindow
         % selected
 
         sfp  % The SapflowProcessor object for the current sensor data.
+        allSfp
+        sfpI
+
+        numSensors
     end
 
     methods (Access = public)
@@ -26,7 +30,18 @@ classdef SapEditWindow < LineEditWindow
 
             o@LineEditWindow(); % Create generic window.
 
+            mf = uimenu(o.figureHnd, 'Label', 'File');
+            me = uimenu(o.figureHnd, 'Label', 'Edit');
+            mh = uimenu(o.figureHnd, 'Label', 'Help');
+
+            mo = uimenu(mf, 'Label', 'Open Project', 'Accelerator', 'O', 'Callback', @o.openProject);
+            %fs = uimenu(mf, 'Label', 'Save', 'Accelerator', 'S');
+            %mx = uimenu(mf,'Label','Exit', 'Accelerator','X', 'Callback', @closeConfirm);
+
+
             % Add in controls
+            o.addButton('nextSensor',  'next sensor',         'downarrow',  'next sensor',       2, 9, @(~,~)o.selectSensor(1));
+            o.addButton('prevSensor', 'prev sensor',         'uparrow', 'prev sensor',      2, 10, @(~,~)o.selectSensor(-1));
             o.addButton('panLeft',  '< pan',         'leftarrow',  'pan focus area left ("<-")',       1, 1, @(~,~)o.zoomer.pan(-0.8));
             o.addButton('panRight', 'pan >',         'rightarrow', 'pan focus area right ("->")',      2, 1, @(~,~)o.zoomer.pan(+0.8));
             o.addButton('zoomIn',   'zoom in',       'add',        'narrow focus area duration ("+")', 1, 2, @(~,~)o.zoomer.zoom(0.8));
@@ -57,37 +72,7 @@ classdef SapEditWindow < LineEditWindow
 
             o.selectBox        = o.createEmptyLine('dtZoom',  'k:');
 
-            %TEMP!!! the following is hardcoded for now...
-
-            [year, par, vpd, sf, doy, tod] = loadRawSapflowData('little.csv', 2012);
-
-            sf = cleanRawFluxData(sf);
-
-            ss = sf(:,2); % select just one sensor for now
-
-            par = processPar(par, tod);
-
-            % set up processor
-            o.sfp = SapflowProcessor(doy, tod, vpd, par, ss);
-
-            o.sfp.baselineCallback = @o.baselineUpdated;
-            o.sfp.sapflowCallback = @o.sapflowUpdated;
-            o.sfp.undoCallback = @o.undoCallback;
-
-            o.sfp.auto();
-
-            o.sfp.compute();
-
-            o.setLimits([1, o.sfp.ssL], {[0, max(o.sfp.ss)], [0, 1]});
-
-            o.setXData(1:o.sfp.ssL);
-
-            o.baselineUpdated();
-            o.sapflowUpdated();
-
-            for name = {'bla', 'blaAll', 'sapflowAll', 'sapflow', 'spbl', 'zvbl', 'lzvbl', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
-                o.lines.(name{1}).Visible = 'On';
-            end
+            o.zoomer.createZoomAreaIndicators();
 
             o.charts.dtZoom.ButtonDownFcn = @o.selectDtArea;
 
@@ -97,7 +82,6 @@ classdef SapEditWindow < LineEditWindow
             o.lines.zvbl.ButtonDownFcn = @o.markerClick;
             o.lines.lzvbl.ButtonDownFcn = @o.markerClick;
 
-            o.enableCommands({'panLeft', 'panRight', 'zoomIn', 'zoomOut'});
 
          end
 
@@ -106,6 +90,106 @@ classdef SapEditWindow < LineEditWindow
 
     methods (Access = private)
 
+        function year = whichYear(o, years)
+            dialogOut = inputdlg('Which year? (', '', 1, {num2str(years(1))});
+            year = str2double(dialogOut{:});
+        end
+
+        function openProject(o, ~, ~)
+            [filename, path] = uigetfile('*.csv', 'Select Data File');
+            if not(filename)
+                return
+            end
+
+            for name = {'bla', 'blaAll', 'sapflowAll', 'sapflow', 'spbl', 'zvbl', 'lzvbl', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
+                o.lines.(name{1}).Visible = 'Off';
+            end
+
+            %TEMP!!! o.zoomer.hide();
+
+            o.disableCommands({});
+
+            saved = o.figureHnd.Pointer;
+            o.figureHnd.Pointer = 'watch';
+            drawnow();
+
+            o.reportStatus('Loading');
+
+            try
+                [year, par, vpd, sf, doy, tod] = loadRawSapflowData(fullfile(path, filename), @o.whichYear);
+            catch err
+                errordlg(err.message, 'Well, that didn''t work')
+                return;
+            end
+            o.reportStatus('Cleaning');
+
+            sf = cleanRawFluxData(sf);
+            o.reportStatus('Processing PAR');
+            par = processPar(par, tod);
+
+            [~, o.numSensors] = size(sf);
+
+            o.allSfp = cell(1, o.numSensors);
+
+            for i = 1:o.numSensors
+                o.reportStatus(sprintf('Building %d of %d', i, o.numSensors));
+                o.allSfp{i} = SapflowProcessor(doy, tod, vpd, par, sf(:,i));
+                o.allSfp{i}.baselineCallback = @o.baselineUpdated;
+                o.allSfp{i}.sapflowCallback = @o.sapflowUpdated;
+                o.allSfp{i}.undoCallback = @o.undoCallback;
+                o.allSfp{i}.auto();
+                o.allSfp{i}.compute();
+            end
+
+            o.reportStatus('Ready');
+
+            o.sfpI = 1;
+            o.sfp = o.allSfp{o.sfpI};
+
+
+            o.zoomer.setXLimit([1, o.sfp.ssL]);
+
+            o.setXData(1:o.sfp.ssL);
+
+            o.figureHnd.Pointer = saved;
+
+            o.baselineUpdated();
+            o.sapflowUpdated();
+
+            for name = {'bla', 'blaAll', 'sapflowAll', 'sapflow', 'spbl', 'zvbl', 'lzvbl', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
+                o.lines.(name{1}).Visible = 'On';
+            end
+
+            o.enableCommands({'panLeft', 'panRight', 'zoomIn', 'zoomOut', 'nextSensor', 'prevSensor'});
+
+
+        end
+
+
+        function selectSensor(o, dir)
+
+            % the joys of the index from 1 approach ...
+            indexFromZero = o.sfpI - 1;
+            indexFromZero = mod(indexFromZero + dir, o.numSensors);
+            o.sfpI = indexFromZero + 1;
+
+            o.sfp = o.allSfp{o.sfpI};
+            %TEMP!!!o.setLimits([1, o.sfp.ssL], {[0, max(o.sfp.ss)], [0, 1]});
+            o.baselineUpdated();
+            o.sapflowUpdated();
+
+            o.reportStatus(sprintf('Sensor %d', o.sfpI));
+
+            for name = {'bla', 'blaAll', 'sapflowAll', 'sapflow', 'spbl', 'zvbl', 'lzvbl', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
+                o.lines.(name{1}).Visible = 'On';
+            end
+
+            o.sfp.setup();
+
+            o.enableCommands({'panLeft', 'panRight', 'zoomIn', 'zoomOut', 'nextSensor', 'prevSensor'});
+
+            o.zoomer.setYLimits({[0, max(o.sfp.ss)], [0, 1]});
+        end
 
         function sapflowUpdated(o)
             % The SapflowProcessor calls this when sapflow is changed.
@@ -302,5 +386,7 @@ classdef SapEditWindow < LineEditWindow
                 o.enableCommands({'undo'})
             end
         end
+
+
     end
 end

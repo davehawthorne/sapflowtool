@@ -133,18 +133,26 @@ classdef MultiZoomer < handle
         end
 
 
-        function setLimits(o, s)
+        function setXLimit(o, range)
+            % Set the extent of the overview charts.
+            %
+            o.xLimit = range;
+            for i = 1:o.numChartPairs
+                fp = o.fullCharts{i};
+                fp.XLim = range;
+            end
+            o.setXZoom(1, range(2)/10);
+        end
+
+        function setYLimits(o, ranges)
             % Set the extent of the overview charts.
             %
             %TEMP!!! also set max zoom ranges
-            o.xLimit = s.xLimit;
             for i = 1:o.numChartPairs
-                o.yLimits{i} = s.yLimits{i};
+                o.yLimits{i} = ranges{i};
                 fp = o.fullCharts{i};
-                fp.YLim = s.yLimits{i};
-                fp.XLim = s.xLimit;
+                fp.YLim = ranges{i};
             end
-            o.setXZoom(s.xZoom(1), s.xZoom(2));
             o.restoreY();
         end
 
