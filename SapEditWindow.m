@@ -33,8 +33,8 @@ classdef SapEditWindow < LineEditWindow
             o.addButton('zoomOut',  'zoom out',      'subtract',   'expand focus area duration ("-")', 2, 2, @(~,~)o.zoomer.zoom(1.25));
             o.addButton('zoomReg',  'zoom sel',      'z',          'zoom to selection',                1, 3, @o.zoomtoRegion);
             o.addButton('delBla',   'del BL anchors','b',          'delete baseline anchors in range (d)', 1, 5, @o.delBla);
-            o.addButton('delRaw',   'delete SF data','d',          'delete selected sapflow data',         1, 7, @o.delRaw);
-            o.addButton('intRaw',   'interpolate SF','i',          'interpolate selected sapflow data',    2, 7, @o.intRaw);
+            o.addButton('deleteSapflow',   'delete SF data','d',          'delete selected sapflow data',         1, 7, @o.deleteSapflow);
+            o.addButton('interpolateSapflow',   'interpolate SF','i',          'interpolate selected sapflow data',    2, 7, @o.interpolateSapflow);
             o.addButton('anchorBla','anchor BL',     'a',          'anchor baseline to suggested points',  3, 7, @o.anchorBla);
             o.addButton('undo',     'undo last',     'u',          'undo last command',                    2, 6, @(~,~)o.sfp.undo());
 
@@ -55,10 +55,7 @@ classdef SapEditWindow < LineEditWindow
             o.lines.kaLine     = o.createEmptyLine('kZoom',  'r:');
             o.lines.nvpd       = o.createEmptyLine('kZoom',  'g-');
 
-            o.lines.edit       = o.createEmptyLine('dtZoom',  'bo');
             o.selectBox        = o.createEmptyLine('dtZoom',  'k:');
-            %o.selectPoints     = o.createEmptyLine('dtZoom',  'ko');
-            %o.selectLine       = o.createEmptyLine('dtZoom',  'k');
 
             %TEMP!!! the following is hardcoded for now...
 
@@ -144,23 +141,32 @@ classdef SapEditWindow < LineEditWindow
 
 
         function delBla(o, ~, ~)
-            o.selectBox.Visible = 'Off';
+            % The user has clicked the delete baseline button.  Delete the
+            % bla values in the selection range.
+            o.deselect()
             i = o.pointsInSelection(o.lines.bla);
             o.sfp.delBaselineAnchors(i);
         end
 
 
         function i = pointsInSelection(o, line)
+            % For the specified 1xN line, return a 1xN vector indicating
+            % which points of that line fall within the X and Y values
+            % bound by the selection rectangle.
+            %
+            % any NaN values in the X range are treated as in range.
             x = line.XData;
             y = line.YData;
             xr = o.selection.xRange;
             yr = o.selection.yRange;
-            i = (x > xr(1) & x < xr(2) & y > yr(1) & y < yr(2));
-            i = i | (isnan(y) & x > xr(1) & x < xr(2));
+            i = (x >= xr(1) & x <= xr(2) & y >= yr(1) & y <= yr(2));
+            i = i | (isnan(y) & x >= xr(1) & x <= xr(2));  %capture NaN values  %TEMP!!! rethink
         end
 
 
-        function delRaw(o, ~, ~)
+        function deleteSapflow(o, ~, ~)
+            % Delete all sapflow sample values inclosed in the selection
+            % box.
             o.deselect()
             i = o.pointsInSelection(o.lines.sapflow);
             changes = i - [0,i(1:end-1)];
@@ -169,22 +175,27 @@ classdef SapEditWindow < LineEditWindow
         end
 
 
-        function intRaw(o, ~, ~)
+        function interpolateSapflow(o, ~, ~)
+            % Interpolate all sapflow sample values inclosed in the selection
+            % box.
             o.deselect()
             i = o.pointsInSelection(o.lines.sapflow);
             changes = i - [0,i(1:end-1)];
-            regions = [find(changes == 1)', find(changes == -1)'];
+            regions = [find(changes == 1)' - 1, find(changes == -1)'];
             o.sfp.interpolateSapflow(regions);
         end
 
 
         function zoomtoRegion(o, ~, ~)
+            % Zoom in so the currently selected area fills the chart.
             o.deselect()
             o.zoomer.zoomToRange(1, o.selection.xRange, o.selection.yRange);
         end
 
 
         function anchorBla(o, ~, ~)
+            % Anchor the baseline at every ZeroVpd candidate anchor point
+            % in the selection box.
             o.deselect()
             i = o.pointsInSelection(o.lines.zvbl);
             o.sfp.addBaselineAnchors(o.lines.zvbl.XData(i));
@@ -193,19 +204,47 @@ classdef SapEditWindow < LineEditWindow
 
 
         function selectDtArea(o, chart, ~)
+            % The user has clicked inside the zoom chart.  Once a range has
+            % been selected by dragging the cursor mark this with the
+            % selectBox line.  Enable any command that operates on selected
+            % data.
+            %
+            % If the user clicks rather than drags AND the time the click
+            % on has no valid sapflow data then the range without data is
+            % selected.
             p1 = chart.CurrentPoint();
             rbbox();
             p2 = chart.CurrentPoint();
-            o.selection.xRange = sort([p1(1,1), p2(1,1)]);
-            o.selection.yRange = sort([p1(1,2), p2(1,2)]);
-            o.selectBox.XData = o.selection.xRange([1, 2, 2, 1, 1]);
-            o.selectBox.YData = o.selection.yRange([1, 1, 2, 2, 1]);
-            o.selectBox.Visible = 'On';
-            o.enableCommands({'zoomReg', 'delRaw', 'intRaw', 'delBla', 'anchorBla'});
+            if p1 == p2
+                % The user has clicked on an empty spot on the chart
+                t = round(p1(1,1));
+
+                % If there's no sapflow data at this time then try to place
+                % the selection to bridge the NaN range.  And enable the
+                % interpolate button so the user can join the dots.
+                if isnan(o.sfp.ss(t))
+                    notNan = not(isnan(o.sfp.ss));
+                    tStart = find(notNan(1:t), 1, 'last');
+                    tEnd = find(notNan(t:end), 1, 'first') + t - 1;
+                    if tStart && tEnd
+                        % There are valid sapflow data either side of the
+                        % clicked point.
+                        o.setSelectionArea([tStart, tEnd], o.sfp.ss([tStart, tEnd]));
+                        o.enableCommands({'interpolateSapflow'});
+                    end
+                end
+                return
+            else
+                % the user has dragged out a range
+                o.setSelectionArea(sort([p1(1,1), p2(1,1)]), sort([p1(1,2), p2(1,2)]));
+                o.enableCommands({'zoomReg', 'deleteSapflow', 'interpolateSapflow', 'delBla', 'anchorBla'});
+            end
         end
 
 
         function markerClick(o, line, ~)
+            % The user has clicked on the sapflow data line, or a baseline
+            % candidate point.  Anchor the baseline to this point.
             chart = o.charts.dtZoom;
             ratio = chart.DataAspectRatio;
             p = chart.CurrentPoint();
@@ -213,14 +252,13 @@ classdef SapEditWindow < LineEditWindow
             yr = chart.YLim;
             xd = line.XData;
             yd = line.YData;
+
+            % Find the nearest point to where we clicked
             ii = find(xd > xr(1) & xd < xr(2) & yd > yr(1) & yd < yr(2));
             xp = p(1,1);
             yp = p(1,2);
             sqDist = ((xd(ii) - xp)/ratio(1)) .^ 2 + ((yd(ii) - yp)/ratio(2)) .^ 2;
             [~, i] = min(sqDist);
-            o.lines.edit.XData = xd(ii(i));
-            o.lines.edit.YData = yd(ii(i));
-            o.lines.edit.Visible = 'On';
 
             o.sfp.addBaselineAnchors(xd(ii(i)));
 
@@ -228,18 +266,34 @@ classdef SapEditWindow < LineEditWindow
 
 
         function setXData(o, xData)
+            % sets the common X axis values for all the 1 x ssL lines.
             for name = {'sapflowAll', 'sapflow', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
                 o.lines.(name{1}).XData = xData;
             end
         end
 
+        function setSelectionArea(o,xRange, yRange)
+            % Sets the selection range for susquent use and marks the area
+            % on the zoomed chart.
+            o.selection.xRange = xRange;
+            o.selection.yRange = yRange;
+            o.selectBox.XData = xRange([1, 2, 2, 1, 1]);
+            o.selectBox.YData = yRange([1, 1, 2, 2, 1]);
+            o.selectBox.Visible = 'On';
+        end
 
         function deselect(o)
+            % An action has been performed on the selected region.  We can
+            % now clear the selection indicator and grey out the command
+            % buttons.
             o.selectBox.Visible = 'Off';
-            o.disableCommands({'zoomReg', 'delRaw', 'intRaw', 'delBla', 'anchorBla'});
+            o.disableCommands({'zoomReg', 'deleteSapflow', 'interpolateSapflow', 'delBla', 'anchorBla'});
         end
 
         function undoCallback(o, description)
+            % With each command executed or undone, we update the undo
+            % button.  Either setting the button text to reflect the last
+            % command or, if there are none, grey out the button.
             if not(description)
                 o.renameCommand('undo', 'Undo');
                 o.disableCommands({'undo'})
