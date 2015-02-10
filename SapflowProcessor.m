@@ -14,24 +14,25 @@ classdef SapflowProcessor < handle
         par % Photosynthetically Active Radiation
         ss  % sapflow measurement sequence
 
-        ssL % length of sapflow data
+        ssL % length of sapflow data (N)
 
-        % These are generated from the sapflow values:
+        % These are generated automatically from the sapflow values:
+        % The are 1 x N vectors of indexes
 
-        %TEMP!!! these are all N x 1 arrays.  Change to 1 x N to be
-        %consistent
-        spbl
-        zvbl
-        lzvbl
-        bla % Baseline adjusted (manually)
+        zvbl % points where nighttime VPD is zero for at least threshold duration
+        spbl % zvbl values where standard deviation is less than threshold limit
+        lzvbl % final zvbl value each night
 
+        bla % Baseline adjusted (manually); a 1 x N
+
+        % these are 1xN vectors of the same length as the ss vectors
         k_line
         ka_line
         nvpd
     end
 
     properties (Access = private)
-        cmdStack % List of previously entered commands - allows undoing.
+        cmdStack % Last on, first off stack of previously entered commands - allows undoing.
     end
 
     properties (SetAccess = public, GetAccess = public)
@@ -99,10 +100,9 @@ classdef SapflowProcessor < handle
 
 
         function addBaselineAnchors(o, t)
-            % Anchor the baseline to sapflow at the specified times.
-            %
-            %
-
+            % Anchor the baseline to sapflow at the specified times t.
+            % t is a 1xN vector.
+            % This command can be undone.
             o.pushCommand('add baseline anchors', @o.undoBaselineChange, o.bla);
             o.bla = unique([o.bla, t]);
             o.compute();
@@ -110,8 +110,9 @@ classdef SapflowProcessor < handle
         end
 
         function delBaselineAnchors(o, i)
-            %
-            % i is the
+            % Delete the baseline anchor points with the index values i
+            % i is a 1xN vector.
+            % This command can be undone.
             o.pushCommand('delete baseline anchors', @o.undoBaselineChange, o.bla);
             o.bla(i) = [];
             o.compute();
@@ -120,15 +121,37 @@ classdef SapflowProcessor < handle
 
 
         function delSapflow(o, regions)
+            % Delete the sapflow values in the specified regions.
+            % regions is a 1xN cell array, where each cell is a 1x2 array
+            % of the form [tStart, tEnd].
+            %
+            % Sapflow data are deleted by setting the values to NaN.
+            % Any baseline values in these ranges will also be deleted.
+            %
+            % This command can be undone.
             o.modifySapflow(regions, @o.delSapflowSegment, 'delete sapflow data')
         end
 
         function interpolateSapflow(o, regions)
+            % The same as delSapflow() except that the sapflow changes
+            % linearly over each range from the value at start to the value
+            % at the end.
+            % regions is a 1xN cell array, where each cell is a 1x2 array
+            % of the form [tStart, tEnd].
+            %
+            % Any baseline values in these ranges will be deleted.
+            %
+            % This command can be undone.
             o.modifySapflow(regions, @o.interpSapflowSegment, 'interpolate sapflow data')
         end
 
 
         function auto(o)
+            % Apply an algorithm to the sapflow data to identify some
+            % candidate baseline anchor points.
+            %
+            % Populates the spbl, zvbl, lzvbl and bla vectors.
+            %
             nDOY = o.doy;
             nDOY(o.tod < 1000) = nDOY(o.tod < 1000) - 1;
 
@@ -137,9 +160,11 @@ classdef SapflowProcessor < handle
                 o.vpd, o.VPDthresh, o.VPDtime ...
             );
 
-            o.spbl = o.spbl';
+
+            o.spbl = o.spbl';  %TEMP!!! there must be a nicer way of ensuring 1xN shape.
             o.zvbl = o.zvbl';
             o.lzvbl = o.lzvbl';
+
             iValidSamples = find(isfinite(o.ss));
             iFirstValid = min(iValidSamples);
             iLastValid = max(iValidSamples);
@@ -154,6 +179,9 @@ classdef SapflowProcessor < handle
         end
 
         function compute(o)
+            % Based on the sapflow, bla and VPD data, calculate the K, KA
+            % and NVPD values.
+            %
             blv = interp1(o.zvbl, o.ss(o.zvbl), (1:o.ssL))';
 
             o.k_line = blv ./ o.ss - 1;
@@ -171,6 +199,8 @@ classdef SapflowProcessor < handle
     methods (Access = private)
 
         function undoBaselineChange(o, args)
+            % Restore the baseline anchor values which were saved prior to
+            % the previous command.
             o.bla = args;
             o.compute();
             o.baselineCallback();
@@ -178,6 +208,12 @@ classdef SapflowProcessor < handle
 
 
         function undoSapflowChange(o, args)
+            % Restores the sapflow data ranges changed by the previous
+            % command.  Restore the various candidate and manually defined
+            % baseline anchor points.
+            %
+            % Blanket overright of baseline values, restoration of ss is
+            % done one segment at a time
             [ssCutSeg, o.bla, o.spbl, o.zvbl, o.lzvbl] = args{1:end};
             for seg = ssCutSeg
                 [ts, te, orig] = seg{1}{:};
@@ -190,23 +226,32 @@ classdef SapflowProcessor < handle
         end
 
         function delSapflowSegment(o, ts, te)
+            % Callback for modifySapflow().  All sapflow data in the ts to
+            % te range are discarded.
             o.ss(ts:te) = NaN;
         end
 
         function interpSapflowSegment(o, ts, te)
-            if ts == 1 || te == o.ssL
-                o.ss(ts:te) = NaN;
-                return
-            end
-            ts = ts - 1;
-            te = te + 1;
-            if not(isfinite(o.ss(ts)) & isfinite(o.ss(ts)))
+            % Callback for modifySapflow().  A little more involved than
+            % delSapflowSegment().  If either end of the range is NaN then
+            % the whole range is set accordingly.  Otherwise we join the
+            % start with the end with a straight line.
+            if isnan(o.ss(ts)) || isnan(o.ss(te))
                 return
             end
             o.ss(ts:te) = interp1([ts, te], o.ss([ts,te]), ts:te);
         end
 
         function modifySapflow(o, regions, segmentCallback, message)
+            % Does the heavy lifting for interpolateSapflow() and
+            % delSapflow().  For each region, identifies enclosed baseline
+            % anchor points and marks them for deletion.  Also calls the
+            % appropriate callback to modify the sapflow data.
+            %
+            % The baseline vectors are small enough to store complete.
+            % Storing the complete sapflow vectors would chew up lots of
+            % memory, so we just store the segments changes, along with
+            % some location information.
             blaCutI = [];
             spblCutI = [];
             zvblCutI = [];
@@ -244,6 +289,16 @@ classdef SapflowProcessor < handle
         end
 
         function pushCommand(o, description, callback, params)
+            % With each command executed we record what's done so it can be
+            % undeleted if necessary.  A callback is invoked which might be
+            % used to update the text in the GUI's undo button for example.
+            %
+            % Parameters:
+            % - description: text detailing the operation (used for the
+            %   callback to the user interface code.
+            % - callback: the method to call to undo the action
+            % - params: a 1xN cell array with the parameters needed by the
+            %   undo callback.
             o.cmdStack.push({description, callback, params})
             if isa(o.undoCallback, 'function_handle')
                 o.undoCallback(description);
