@@ -87,7 +87,7 @@ classdef LineEditWindow < handle
             %
             % The plot is attached to chartName and will sport the specified
             % style.
-            plotHandle = plot(o.charts.(chartName), 0, 0, style, 'Visible', 'Off');
+            plotHandle = plot(o.charts.(chartName), 0, 0, style, 'Visible', 'Off', 'PickableParts', 'none');
         end
 
 
@@ -115,6 +115,7 @@ classdef LineEditWindow < handle
                 'Callback', callback, ...
                 'Position', o.figPosScaler .* [col * 1.75 + 17.5, row + 1, 1.5, 0.8], ...
                 'TooltipString', toolTip, ...
+                'KeyPressFcn', @o.handleKeypress, ...
                 'Enable', 'Off' ...
             );
             o.keys.(name) = struct( ...
@@ -137,7 +138,7 @@ classdef LineEditWindow < handle
             %TEMP!!! naming inconsistent with addButton()
             if isempty(names)
                 % select all
-                names = fieldnames(o.keys)
+                names = fieldnames(o.keys)';
             end
             for name = names
                 o.keys.(name{1}).Enable = 0;
@@ -161,6 +162,20 @@ classdef LineEditWindow < handle
             % Updates the status bar
             o.statusBar.String = sprintf(format, varargin{:});
             drawnow();
+        end
+
+
+        function disableChartsControl(o)
+            for name = fieldnames(o.charts)'
+                o.charts.(name{1}).PickableParts = 'none';
+            end
+        end
+
+
+        function enableChartsControl(o)
+            for name = fieldnames(o.charts)'
+                o.charts.(name{1}).PickableParts = 'visible';
+            end
         end
 
     end
@@ -187,10 +202,9 @@ classdef LineEditWindow < handle
 
         function a = makeChart(o, pos)
             % Helper function used by constructor.
-            a = axes('Units', 'pixels', 'Parent', o.figureHnd, 'Position', pos .* o.figPosScaler);
+            a = axes('Units', 'pixels', 'Parent', o.figureHnd, 'Position', pos .* o.figPosScaler, 'PickableParts', 'none');
             hold(a, 'on');
         end
-
 
 
     end

@@ -17,6 +17,7 @@ classdef SapEditWindow < LineEditWindow
         sfpI
 
         numSensors
+
     end
 
     methods (Access = public)
@@ -35,8 +36,6 @@ classdef SapEditWindow < LineEditWindow
             mh = uimenu(o.figureHnd, 'Label', 'Help');
 
             mo = uimenu(mf, 'Label', 'Open Project', 'Accelerator', 'O', 'Callback', @o.openProject);
-            %fs = uimenu(mf, 'Label', 'Save', 'Accelerator', 'S');
-            %mx = uimenu(mf,'Label','Exit', 'Accelerator','X', 'Callback', @closeConfirm);
 
 
             % Add in controls
@@ -72,18 +71,17 @@ classdef SapEditWindow < LineEditWindow
 
             o.selectBox        = o.createEmptyLine('dtZoom',  'k:');
 
-            o.zoomer.createZoomAreaIndicators();
-
             o.charts.dtZoom.ButtonDownFcn = @o.selectDtArea;
 
-            o.lines.bla.ButtonDownFcn = @o.markerClick;
-            o.lines.sapflow.ButtonDownFcn = @o.markerClick;
-            o.lines.spbl.ButtonDownFcn = @o.markerClick;
-            o.lines.zvbl.ButtonDownFcn = @o.markerClick;
-            o.lines.lzvbl.ButtonDownFcn = @o.markerClick;
+            for name = {'bla', 'sapflow', 'spbl', 'zvbl', 'lzvbl'}
+                line = o.lines.(name{:});
+                line.ButtonDownFcn = @o.markerClick;
+                line.PickableParts = 'visible';
+            end
 
-
+            o.zoomer.createZoomAreaIndicators();
          end
+
 
 
     end
@@ -105,13 +103,13 @@ classdef SapEditWindow < LineEditWindow
                 o.lines.(name{1}).Visible = 'Off';
             end
 
-            %TEMP!!! o.zoomer.hide();
-
             o.disableCommands({});
+            o.zoomer.disable();
+            o.disableChartsControl();
 
-            saved = o.figureHnd.Pointer;
+            savedPointer = o.figureHnd.Pointer;
             o.figureHnd.Pointer = 'watch';
-            drawnow();
+            o.deselect();
 
             o.reportStatus('Loading');
 
@@ -151,38 +149,33 @@ classdef SapEditWindow < LineEditWindow
 
             o.setXData(1:o.sfp.ssL);
 
-            o.figureHnd.Pointer = saved;
+            o.figureHnd.Pointer = savedPointer;
 
-            o.baselineUpdated();
-            o.sapflowUpdated();
+            o.selectSensor(0);
+            o.zoomer.enable();
+            o.enableChartsControl();
 
             for name = {'bla', 'blaAll', 'sapflowAll', 'sapflow', 'spbl', 'zvbl', 'lzvbl', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
                 o.lines.(name{1}).Visible = 'On';
             end
-
-            o.enableCommands({'panLeft', 'panRight', 'zoomIn', 'zoomOut', 'nextSensor', 'prevSensor'});
-
 
         end
 
 
         function selectSensor(o, dir)
 
-            % the joys of the index from 1 approach ...
+            % the joys of MATLAB's index from 1 approach ...
             indexFromZero = o.sfpI - 1;
             indexFromZero = mod(indexFromZero + dir, o.numSensors);
             o.sfpI = indexFromZero + 1;
 
+            o.deselect();
+
             o.sfp = o.allSfp{o.sfpI};
-            %TEMP!!!o.setLimits([1, o.sfp.ssL], {[0, max(o.sfp.ss)], [0, 1]});
             o.baselineUpdated();
             o.sapflowUpdated();
 
             o.reportStatus(sprintf('Sensor %d', o.sfpI));
-
-            for name = {'bla', 'blaAll', 'sapflowAll', 'sapflow', 'spbl', 'zvbl', 'lzvbl', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
-                o.lines.(name{1}).Visible = 'On';
-            end
 
             o.sfp.setup();
 
@@ -298,6 +291,7 @@ classdef SapEditWindow < LineEditWindow
             % selected.
             p1 = chart.CurrentPoint();
             rbbox();
+            drawnow();  % gives next call enough time to register the mouse pointer has moved; sometimes it doesn't.
             p2 = chart.CurrentPoint();
             if p1 == p2
                 % The user has clicked on an empty spot on the chart

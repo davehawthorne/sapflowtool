@@ -38,6 +38,7 @@ classdef MultiZoomer < handle
         numChartPairs % the value of N in the above
         xLimit     % 1 x 2 array containing X range of all charts
         xZoom      % 1 x 2 array with the current X range on all the zoom charts
+
     end
 
     methods (Access = public)
@@ -50,11 +51,11 @@ classdef MultiZoomer < handle
             % - figure: the handle to the figure containing the charts
             % - fullCharts: 1 x N cell array of handles to axes instances
             % - zoomCharts: another 1 x N cell array of handles to axes instances
+
             o.figure = s.figure;
             o.fullCharts = s.fullCharts;
             o.zoomCharts = s.zoomCharts;
 
-            o.figure.WindowScrollWheelFcn = @o.wheelCallback;
             o.numChartPairs = length(o.fullCharts);
             for i = 1:o.numChartPairs
                 fp = o.fullCharts{i};
@@ -84,7 +85,8 @@ classdef MultiZoomer < handle
                     'b', ...
                     'Parent', fp, ...
                     'FaceAlpha', 0.3, ...
-                    'HitTest', 'off' ...
+                    'HitTest', 'Off', ...
+                    'Visible', 'Off' ...
                     );
                 hold(fp, 'off');
             end
@@ -166,6 +168,25 @@ classdef MultiZoomer < handle
         end
 
 
+        function disable(o)
+            % Called when there's nothing to zoom on.  Stops the mouse
+            % wheel from doing anything and hides the location rectangles.
+            o.figure.WindowScrollWheelFcn = '';
+            for i = 1:o.numChartPairs
+                o.locRects{i}.Visible = 'Off';
+            end
+        end
+
+
+        function enable(o)
+            % Once data are loaded we call this to enable the mouse wheel
+            % and display the location rectangles.
+            o.figure.WindowScrollWheelFcn = @o.wheelCallback;
+            for i = 1:o.numChartPairs
+                o.locRects{i}.Visible = 'On';
+            end
+        end
+
     end
 
     methods (Access = private)
@@ -204,7 +225,6 @@ classdef MultiZoomer < handle
 
 
         function buttDownFullAxis(o, chart, ~)
-
             p1 = chart.CurrentPoint();
             rbbox();
             p2 = chart.CurrentPoint();
