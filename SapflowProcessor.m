@@ -14,6 +14,8 @@ classdef SapflowProcessor < handle
         par % Photosynthetically Active Radiation
         ss  % sapflow measurement sequence
 
+        ssOrig
+
         ssL % length of sapflow data (N)
 
         % These are generated automatically from the sapflow values:
@@ -65,8 +67,13 @@ classdef SapflowProcessor < handle
             o.tod = tod;
             o.vpd = vpd;
             o.par = par;
+            o.ssOrig = ss;
             o.ss = ss;
             o.ssL = length(o.ss);
+            o.spbl = [1,o.ssL];
+            o.zvbl = [1,o.ssL];
+            o.lzvbl = [1,o.ssL];
+            o.bla = [1,o.ssL];
 
             o.cmdStack = Stack(); % Used for undoing commands.
         end
@@ -80,6 +87,39 @@ classdef SapflowProcessor < handle
                 o.undoCallback(nextCmd{1});
             end
 
+        end
+
+
+        function s = getModifications(o)
+            %
+            s.bla = o.bla;
+            s.spbl = o.spbl;
+            s.zvbl = o.zvbl;
+            s.lzvbl = o.lzvbl;
+            unchanged = (o.ss == o.ssOrig) | (isnan(o.ss) & isnan(o.ssOrig));
+
+            [ts, te] = getRanges(~unchanged)
+            len = length(ts)
+            s.ss = cell(len,3)
+            for i = 1:len
+                s.ss(i,:) = {ts(i), te(i), o.ss(ts(i):te(i))}
+            end
+
+        end
+
+        function setModifications(o, s)
+            o.bla = s.bla;
+            o.spbl = s.spbl;
+            o.zvbl = s.zvbl;
+            o.lzvbl = s.lzvbl;
+            [segs, ~] = size(s.ss)
+            for i = 1:segs
+                [tStart, tEnd, data] = s.ss{i,:};
+                o.ss(tStart:tEnd) = data;
+            end
+%             o.compute();
+%             o.sapflowCallback();
+%             o.baselineCallback();
         end
 
         function undo(o)
@@ -162,18 +202,21 @@ classdef SapflowProcessor < handle
             %
             % Populates the spbl, zvbl, lzvbl and bla vectors.
             %
+
+            o.pushCommand('autoassign BL anchors', @o.undoSapflowChange, {{}, o.bla, o.spbl, o.zvbl, o.lzvbl});
+
             nDOY = o.doy;
             nDOY(o.tod < 1000) = nDOY(o.tod < 1000) - 1;
 
-            [o.spbl, ~, o.zvbl, o.lzvbl] = BL_auto( ...
+            [spbl, ~, zvbl, lzvbl] = BL_auto( ...
                 o.ss, o.doy, nDOY, o.Timestep, o.par, o.PARthresh, ...
                 o.vpd, o.VPDthresh, o.VPDtime ...
             );
 
 
-            o.spbl = o.spbl';  %TEMP!!! there must be a nicer way of ensuring 1xN shape.
-            o.zvbl = o.zvbl';
-            o.lzvbl = o.lzvbl';
+            o.spbl = oneByN(spbl);  %TEMP!!! there must be a nicer way of ensuring 1xN shape.
+            o.zvbl = oneByN(zvbl);
+            o.lzvbl = oneByN(lzvbl);
 
             iValidSamples = find(isfinite(o.ss));
             iFirstValid = min(iValidSamples);
@@ -186,6 +229,10 @@ classdef SapflowProcessor < handle
             end
 
             o.bla = [iFirstValid, o.lzvbl, iLastValid];
+
+            o.compute();
+            o.sapflowCallback();
+            o.baselineCallback();
         end
 
         function compute(o)

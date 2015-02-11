@@ -18,6 +18,8 @@ classdef SapEditWindow < LineEditWindow
 
         numSensors
 
+        configSaver
+
     end
 
     methods (Access = public)
@@ -36,6 +38,7 @@ classdef SapEditWindow < LineEditWindow
             mh = uimenu(o.figureHnd, 'Label', 'Help');
 
             mo = uimenu(mf, 'Label', 'Open Project', 'Accelerator', 'O', 'Callback', @o.openProject);
+            ms = uimenu(mf, 'Label', 'Save Project', 'Accelerator', 'S', 'Callback', @o.saveProject);
 
 
             % Add in controls
@@ -51,6 +54,7 @@ classdef SapEditWindow < LineEditWindow
             o.addButton('interpolateSapflow',   'interpolate SF','i',          'interpolate selected sapflow data',    2, 7, @o.interpolateSapflow);
             o.addButton('anchorBla','anchor BL',     'a',          'anchor baseline to suggested points',  3, 7, @o.anchorBla);
             o.addButton('undo',     'undo last',     'u',          'undo last command',                    2, 6, @(~,~)o.sfp.undo());
+            o.addButton('auto',     'auto BL',     'A',          'apply automatic baseline anchors',       1, 11, @(~,~)o.sfp.auto());
 
             % Specify all the plot lines we'll use.
             o.lines = struct();
@@ -93,8 +97,17 @@ classdef SapEditWindow < LineEditWindow
             year = str2double(dialogOut{:});
         end
 
+        function saveProject(o, ~, ~)
+            for i = 1:o.numSensors
+                s = o.allSfp{i}.getModifications()
+                o.reportStatus('Saving Sensor %d', i);
+                o.configSaver.writeSensor(i, s);
+            end
+            o.reportStatus('Saved');
+        end
+
         function openProject(o, ~, ~)
-            [filename, path] = uigetfile('*.csv', 'Select Data File');
+            [filename, path] = uigetfile(ConfigSaver.ConfigFilenameMask, 'Select Project File');
             if not(filename)
                 return
             end
@@ -111,10 +124,16 @@ classdef SapEditWindow < LineEditWindow
             o.figureHnd.Pointer = 'watch';
             o.deselect();
 
-            o.reportStatus('Loading');
+            o.reportStatus('Reading Config');
 
+            o.configSaver = ConfigSaver(fullfile(path, filename));
+            config = o.configSaver.readAll();
+
+            o.reportStatus('Loading Source Data');
+
+            sourceFile = fullfile(path, config.sourceFilename)
             try
-                [year, par, vpd, sf, doy, tod] = loadRawSapflowData(fullfile(path, filename), @o.whichYear);
+                [year, par, vpd, sf, doy, tod] = loadRawSapflowData(sourceFile, @o.whichYear);
             catch err
                 errordlg(err.message, 'Well, that didn''t work')
                 return;
@@ -130,13 +149,18 @@ classdef SapEditWindow < LineEditWindow
             o.allSfp = cell(1, o.numSensors);
 
             for i = 1:o.numSensors
-                o.reportStatus(sprintf('Building %d of %d', i, o.numSensors));
-                o.allSfp{i} = SapflowProcessor(doy, tod, vpd, par, sf(:,i));
-                o.allSfp{i}.baselineCallback = @o.baselineUpdated;
-                o.allSfp{i}.sapflowCallback = @o.sapflowUpdated;
-                o.allSfp{i}.undoCallback = @o.undoCallback;
-                o.allSfp{i}.auto();
-                o.allSfp{i}.compute();
+                o.reportStatus('Building %d of %d', i, o.numSensors);
+
+                sfp = SapflowProcessor(doy, tod, vpd, par, sf(:,i));
+                sfp.baselineCallback = @o.baselineUpdated;
+                sfp.sapflowCallback = @o.sapflowUpdated;
+                sfp.undoCallback = @o.undoCallback;
+                if isstruct(config.sensor{i})
+                    sfp.setModifications(config.sensor{i})
+                end
+                sfp.compute();
+
+                o.allSfp{i} = sfp;
             end
 
             o.reportStatus('Ready');
@@ -179,7 +203,7 @@ classdef SapEditWindow < LineEditWindow
 
             o.sfp.setup();
 
-            o.enableCommands({'panLeft', 'panRight', 'zoomIn', 'zoomOut', 'nextSensor', 'prevSensor'});
+            o.enableCommands({'panLeft', 'panRight', 'zoomIn', 'zoomOut', 'nextSensor', 'prevSensor', 'auto'});
 
             o.zoomer.setYLimits({[0, max(o.sfp.ss)], [0, 1]});
         end
