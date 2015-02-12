@@ -37,9 +37,11 @@ classdef SapEditWindow < LineEditWindow
             me = uimenu(o.figureHnd, 'Label', 'Edit');
             mh = uimenu(o.figureHnd, 'Label', 'Help');
 
-            mo = uimenu(mf, 'Label', 'Open Project', 'Accelerator', 'O', 'Callback', @o.openProject);
-            ms = uimenu(mf, 'Label', 'Save Project', 'Accelerator', 'S', 'Callback', @o.saveProject);
+            uimenu(mf, 'Label', 'Open Project', 'Accelerator', 'O', 'Callback', @o.openProject);
+            uimenu(mf, 'Label', 'New Project', 'Accelerator', 'N', 'Callback', @o.newProject);
+            uimenu(mf, 'Label', 'Save Project', 'Accelerator', 'S', 'Callback', @o.saveProject);
 
+            uimenu(mh, 'Label', 'About', 'Callback', @o.helpAbout);
 
             % Add in controls
             o.addButton('nextSensor',  'next sensor',         'downarrow',  'next sensor',       2, 9, @(~,~)o.selectSensor(1));
@@ -92,6 +94,10 @@ classdef SapEditWindow < LineEditWindow
 
     methods (Access = private)
 
+        function helpAbout(o, ~, ~)
+            msgbox({'Created by USDA FS SRS Coweeta', 'License text', '2015'}, 'Sapflow Edit Tool');
+        end
+
         function year = whichYear(o, years)
             dialogOut = inputdlg('Which year? (', '', 1, {num2str(years(1))});
             year = str2double(dialogOut{:});
@@ -106,12 +112,39 @@ classdef SapEditWindow < LineEditWindow
             o.reportStatus('Saved');
         end
 
-        function openProject(o, ~, ~)
-            [filename, path] = uigetfile(ConfigSaver.ConfigFilenameMask, 'Select Project File');
+        function newProject(o, ~, ~)
+            [filename, path] = uiputfile(ConfigSaver.ConfigFilenameMask, 'Select Project File');
             if not(filename)
                 return
             end
+            [config.sourceFilename, sourcePath] = uigetfile('*.csv', 'Select Source Data File');
+            if not(config.sourceFilename)
+                return
+            end
+            if not(strcmp(path, sourcePath))
+                %TEMP!!! abs paths are going to be an issue
+                config.sourceFilename = fullfile(sourcePath, config.sourceFilename);
+            end
+            config.projectDesc = inputdlg('Enter a project description', 'Project Description');
+            config.sensor = {};  %TEMP!!!
 
+            o.closeDownCurrent();
+
+            savedPointer = o.figureHnd.Pointer;
+            o.figureHnd.Pointer = 'watch';
+
+            o.readAndProcessSourceData(config)
+
+            o.figureHnd.Pointer = savedPointer;
+
+            config.numSensors = o.numSensors;
+
+            o.configSaver = ConfigSaver(fullfile(path, filename));
+            o.configSaver.writeMaster(config);
+
+        end
+
+        function closeDownCurrent(o)
             for name = {'bla', 'blaAll', 'sapflowAll', 'sapflow', 'spbl', 'zvbl', 'lzvbl', 'kLineAll', 'kLine', 'kaLineAll', 'kaLine', 'nvpd'}
                 o.lines.(name{1}).Visible = 'Off';
             end
@@ -120,20 +153,36 @@ classdef SapEditWindow < LineEditWindow
             o.zoomer.disable();
             o.disableChartsControl();
 
+            o.deselect();
+        end
+
+        function openProject(o, ~, ~)
+            [filename, path] = uigetfile(ConfigSaver.ConfigFilenameMask, 'Select Project File');
+            if not(filename)
+                return
+            end
+
+            o.closeDownCurrent();
+
             savedPointer = o.figureHnd.Pointer;
             o.figureHnd.Pointer = 'watch';
-            o.deselect();
 
             o.reportStatus('Reading Config');
 
             o.configSaver = ConfigSaver(fullfile(path, filename));
             config = o.configSaver.readAll();
 
+            o.readAndProcessSourceData(config)
+
+            o.figureHnd.Pointer = savedPointer;
+
+        end
+
+        function readAndProcessSourceData(o, config)
             o.reportStatus('Loading Source Data');
 
-            sourceFile = fullfile(path, config.sourceFilename)
             try
-                [year, par, vpd, sf, doy, tod] = loadRawSapflowData(sourceFile, @o.whichYear);
+                [year, par, vpd, sf, doy, tod] = loadRawSapflowData(config.sourceFilename, @o.whichYear);
             catch err
                 errordlg(err.message, 'Well, that didn''t work')
                 return;
@@ -155,7 +204,7 @@ classdef SapEditWindow < LineEditWindow
                 sfp.baselineCallback = @o.baselineUpdated;
                 sfp.sapflowCallback = @o.sapflowUpdated;
                 sfp.undoCallback = @o.undoCallback;
-                if isstruct(config.sensor{i})
+                if length(config.sensor) >= i && isstruct(config.sensor{i})
                     sfp.setModifications(config.sensor{i})
                 end
                 sfp.compute();
@@ -172,8 +221,6 @@ classdef SapEditWindow < LineEditWindow
             o.zoomer.setXLimit([1, o.sfp.ssL]);
 
             o.setXData(1:o.sfp.ssL);
-
-            o.figureHnd.Pointer = savedPointer;
 
             o.selectSensor(0);
             o.zoomer.enable();

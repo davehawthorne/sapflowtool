@@ -1,5 +1,6 @@
 classdef ConfigSaver < handle
     % This is a disaster; xlsread and xlswrite are painfully slow.
+    % xlswrite() provide no means of
     % We'll either need to use ActiveX with Excel or switch to XML
     properties (Access = private)
         filename
@@ -35,9 +36,22 @@ classdef ConfigSaver < handle
         end
 
 
+        function writeMaster(o, s)
+
+            ca = {
+                'Source File', s.sourceFilename;
+                'Project Description', s.projectDesc;
+                'Project File Vers', 1;
+                'Num Sensors', s.numSensors;
+            };
+            xlswrite(o.filename, ca, 'master');
+        end
+
+
         function s = readMaster(o)
             [~, ~, raw] = xlsread(o.filename, 'master');
             s.sourceFilename = raw{1,2};
+            s.projectDesc = raw{2,2};
             s.numSensors = raw{4,2};
         end
 
@@ -111,7 +125,11 @@ classdef ConfigSaver < handle
                 tStart = raw{3, col};
                 tEnd = raw{4, col};
                 len = tEnd - tStart + 1;
-                data = cell2mat(raw(6:5+len, col));
+                data = cell2mat(raw(6:min(5+len, end), col));
+                % deal with missing NaNs
+                if length(data) < len
+                    data(end+1:len) = NaN;
+                end
                 s.ss(i,:) = {tStart, tEnd, data};
             end
 
