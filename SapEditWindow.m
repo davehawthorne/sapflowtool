@@ -36,7 +36,7 @@ classdef SapEditWindow < LineEditWindow
             o@LineEditWindow(); % Create generic window.
 
             mf = uimenu(o.figureHnd, 'Label', 'File');
-            me = uimenu(o.figureHnd, 'Label', 'Edit');
+            me = uimenu(o.figureHnd, 'Label', 'Edit'); %#ok<NASGU>  %TEMP!!!
             mh = uimenu(o.figureHnd, 'Label', 'Help');
 
             uimenu(mf, 'Label', 'Open Project', 'Accelerator', 'O', 'Callback', @o.openProject);
@@ -96,11 +96,11 @@ classdef SapEditWindow < LineEditWindow
 
     methods (Access = private)
 
-        function helpAbout(o, ~, ~)
+        function helpAbout(~, ~, ~)
             msgbox({'Created by USDA FS SRS Coweeta', 'License text', '2015'}, 'Sapflow Edit Tool');
         end
 
-        function year = whichYear(o, years)
+        function year = whichYear(~, years)
             dialogOut = inputdlg('Which year? (', '', 1, {num2str(years(1))});
             year = str2double(dialogOut{:});
         end
@@ -110,7 +110,7 @@ classdef SapEditWindow < LineEditWindow
             pfa.writeConfig(o.projectConfig)
 
             for i = 1:o.projectConfig.numSensors
-                s = o.allSfp{i}.getModifications()
+                s = o.allSfp{i}.getModifications();
                 o.reportStatus('Saving Sensor %d', i);
 
                 pfa.writeSensor(i, s);
@@ -134,21 +134,20 @@ classdef SapEditWindow < LineEditWindow
                 sourceFilename = fullfile(sourcePath, sourceFilename);
             end
             o.projectConfig.projectDesc = inputdlg('Enter a project description', 'Project Description');
-            o.projectConfig.sourceFilename = sourceFilename
+            o.projectConfig.sourceFilename = sourceFilename;
 
             o.closeDownCurrent();
 
             savedPointer = o.figureHnd.Pointer;
             o.figureHnd.Pointer = 'watch';
 
-            sensorState = {}
-            o.readAndProcessSourceData(sensorState)
+            o.readAndProcessSourceData({})
 
             o.figureHnd.Pointer = savedPointer;
 
             o.projectConfig.numSensors = o.projectConfig.numSensors;
 
-            o.projectFilename = fullfile(path, filename)
+            o.projectFilename = fullfile(path, filename);
             pfa = ProjectFileAccess();
             pfa.writeConfig(o.projectConfig)
             pfa.save(o.projectFilename);
@@ -179,9 +178,19 @@ classdef SapEditWindow < LineEditWindow
             o.figureHnd.Pointer = 'watch';
 
             o.reportStatus('Reading Config');
-            o.projectFilename = fullfile(path, filename)
-            %TEMP!!! o.configSaver = ConfigSaver(fullfile(path, filename));
-            allConfig = loadSapflowConfig(o.projectFilename);
+            o.projectFilename = fullfile(path, filename);
+            try
+                allConfig = loadSapflowConfig(o.projectFilename);
+            catch err
+                if strcmp(err.identifier, 'sapflowConfig:fileError')
+                    errordlg(err.message, 'Project File Error')
+                    o.figureHnd.Pointer = savedPointer;
+                    return
+                else
+                    rethrow(err);
+                end
+            end
+
 
             o.projectConfig = allConfig.project;
 
@@ -194,7 +203,7 @@ classdef SapEditWindow < LineEditWindow
         function readAndProcessSourceData(o, sensorStates)
             o.reportStatus('Loading Source Data');
             try
-                [year, par, vpd, sf, doy, tod] = loadRawSapflowData(o.projectConfig.sourceFilename, @o.whichYear);
+                [~, par, vpd, sf, doy, tod] = loadRawSapflowData(o.projectConfig.sourceFilename, @o.whichYear);
             catch err
                 errordlg(err.message, 'Load of raw sapflow data failed')
                 return;
@@ -212,16 +221,16 @@ classdef SapEditWindow < LineEditWindow
             for i = 1:o.projectConfig.numSensors
                 o.reportStatus('Building %d of %d', i, o.projectConfig.numSensors);
 
-                sfp = SapflowProcessor(doy, tod, vpd, par, sf(:,i));
-                sfp.baselineCallback = @o.baselineUpdated;
-                sfp.sapflowCallback = @o.sapflowUpdated;
-                sfp.undoCallback = @o.undoCallback;
+                thisSfp = SapflowProcessor(doy, tod, vpd, par, sf(:,i));
+                thisSfp.baselineCallback = @o.baselineUpdated;
+                thisSfp.sapflowCallback = @o.sapflowUpdated;
+                thisSfp.undoCallback = @o.undoCallback;
                 if length(sensorStates) >= i && isstruct(sensorStates{i})
-                    sfp.setModifications(sensorStates{i})
+                    thisSfp.setModifications(sensorStates{i})
                 end
-                sfp.compute();
+                thisSfp.compute();
 
-                o.allSfp{i} = sfp;
+                o.allSfp{i} = thisSfp;
             end
 
             o.reportStatus('Ready');

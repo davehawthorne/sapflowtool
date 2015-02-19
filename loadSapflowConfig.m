@@ -1,66 +1,108 @@
 function c = loadSapflowConfig(filename)
-    top = xmlread(filename);
+    try
+        top = xmlread(filename);
+    catch err
+        if strcmp(err.identifier, 'MATLAB:Java:GenericException')
+            throw(MException('sapflowConfig:fileError', 'The XML file is faulty. Error details follow:\n %s', err.message))
+        end
+        rethrow(err)
+    end
+
     sfp = getOnly(top, 'SapflowProject');
+    protocol = getIntegerAttribute(sfp, 'protocolVersion');
+    if (protocol ~= 1)
+        throw(MException('sapflowConfig:fileError', 'This version of code can only read version 1 project files; not %d', protocol))
+    end
 
-    config = getOnly(sfp, 'ProjectConfig');
-    node = getOnly(config, 'ProjectName');
-    c.project.projectDesc = char(node.getTextContent());
-    node = getOnly(config, 'SourceFilename');
-    c.project.sourceFilename = char(node.getTextContent());
-    node = getOnly(config, 'NumberSensors');
-    c.project.numSensors = getNumericalValue(node);
+    c.project = readProjectConfig(sfp);
+    c.sensors = readSensorsData(sfp);
 
-    c.sensors = {};
+end
 
-    sensors = sfp.getElementsByTagName('Sensor');
-    %TEMP!!! c = cell(1, sensors.getLength());
-    for i = 1:sensors.getLength()
-        sen = sensors.item(i-1);
-        num = getNumericAttribute(sen, 'number');
 
-        c.sensors{num}.bla = getNumericalValue(getOnly(sen, 'bla'));
-        c.sensors{num}.spbl = getNumericalValue(getOnly(sen, 'spbl'));
-        c.sensors{num}.zvbl = getNumericalValue(getOnly(sen, 'zvbl'));
-        c.sensors{num}.lzvbl = getNumericalValue(getOnly(sen, 'lzvbl'));
+function config = readProjectConfig(parent)
+    node = getOnly(parent, 'ProjectConfig');
+    config.projectDesc = getNodeStringValue(node, 'ProjectName');
+    config.sourceFilename = getNodeStringValue(node, 'SourceFilename');
+    config.numSensors = getNodeIntegerValues(node, 'NumberSensors');
+end
 
-        c.sensors{num}.sapflow.cut = cell(1,0);
-        c.sensors{num}.sapflow.new = cell(1,0);
-        sapflow = getOnly(sen, 'Sapflow');
+function sensors = readSensorsData( parent)
+
+    nodes = parent.getElementsByTagName('Sensor');
+
+    sensors = cell(1, nodes.getLength());
+
+    for i = 1:nodes.getLength()
+        node = nodes.item(i-1);
+        num = getIntegerAttribute(node, 'number');
+
+        sensor.bla = getNodeIntegerValues(node, 'bla');
+        sensor.spbl = getNodeIntegerValues(node, 'spbl');
+        sensor.zvbl = getNodeIntegerValues(node, 'zvbl');
+        sensor.lzvbl = getNodeIntegerValues(node, 'lzvbl');
+
+        sensor.sapflow.cut = {};
+        sensor.sapflow.new = {};
+        sapflow = getOnly(node, 'Sapflow');
         cuts = sapflow.getElementsByTagName('Cut');
-        %TEMP!!! c.sensors{num}.sapflow.cut = cell(1, cuts.getLength());
         for j = 1:cuts.getLength()
             cut = cuts.item(j-1);
-            c.sensors{num}.sapflow.cut{j}.start = getNumericAttribute(cut, 'Start');
-            c.sensors{num}.sapflow.cut{j}.end = getNumericAttribute(cut, 'End');
+            s.start = getIntegerAttribute(cut, 'start');
+            s.end = getIntegerAttribute(cut, 'end');
+            sensor.sapflow.cut{j} = s;
         end
         news = sapflow.getElementsByTagName('New');
         for j = 1:news.getLength()
             new = news.item(j-1);
-            c.sensors{num}.sapflow.new{j}.start = getNumericAttribute(new, 'Start');
-            c.sensors{num}.sapflow.new{j}.end = getNumericAttribute(new, 'End');
-            c.sensors{num}.sapflow.new{j}.data = getNumericalValue(new);
+            s.start = getIntegerAttribute(new, 'start');
+            s.end = getIntegerAttribute(new, 'end');
+            s.data = getNumericalValue(new);
+            if length(s.data) ~= s.end - s.start + 1
+                throw(MException('sapflowConfig:fileError', 'Bad new sapflow data length: can''t fit %d items in [%d:%d]', length(s.data), s.start, s.end))
+            end
+            sensor.sapflow.new{j} = s;
         end
 
+        sensors{num} = sensor;
     end
 end
 
 function child = getOnly(parent, nodeName)
     children = parent.getElementsByTagName(nodeName);
     if children.getLength() ~= 1
-        error(sprintf('Expecting exactly one "%s" in "%s", got %d', nodeName, char(parent.getNodeName()), children.getLength()))
+        throw(MException('sapflowConfig:fileError', 'Expecting exactly one "%s" in node "%s", got %d', nodeName, char(parent.getNodeName()), children.getLength()));
     end
     child = children.item(0);
 end
 
-function value = getNumericAttribute(parent, attrName)
+function value = getIntegerAttribute(parent, attrName)
     if not(parent.hasAttribute(attrName))
-        error('Expected attribute "%s" missing from "%s"', attrName, char(parent.getNodeName()))
+        throw(MException('sapflowConfig:fileError', 'Expected attribute "%s" missing from node "%s"', attrName, char(parent.getNodeName())));
     end
     attr = parent.getAttributeNode(attrName);
-    value = str2num(attr.getValue());
+    string = attr.getValue();
+    value = str2num(string); %#ok<ST2NM>
+    if not((value == round(value)) && isscalar(value))
+        throw(MException('sapflowConfig:fileError', 'Expected single integer for attribute "%s", not "%s"', attrName, string));
+    end
 end
 
 function value = getNumericalValue(node)
-    value = str2num(node.getTextContent());
+    value = str2num(node.getTextContent()); %#ok<ST2NM>
 end
 
+
+function values = getNodeIntegerValues(parent, nodeName)
+    node = getOnly(parent, nodeName);
+    values = getNumericalValue(node);
+    if not(all(values == round(values)))
+        throw(MException('sapflowConfig:fileError', 'Expected integers for node "%s", not floats', nodeName));
+    end
+end
+
+
+function value = getNodeStringValue(parent, nodeName)
+    node = getOnly(parent, nodeName);
+    value = char(node.getTextContent());
+end
