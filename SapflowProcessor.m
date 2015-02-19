@@ -100,9 +100,15 @@ classdef SapflowProcessor < handle
 
             [ts, te] = getRanges(~unchanged)
             len = length(ts)
-            s.ss = cell(len,3)
+            s.sapflow.cut = {};
+            s.sapflow.new = {};
             for i = 1:len
-                s.ss(i,:) = {ts(i), te(i), o.ss(ts(i):te(i))}
+                data = o.ss(ts(i):te(i))
+                if all(isnan(data))
+                    s.sapflow.cut{end+1} = struct('start', ts(i), 'end', te(i))
+                else
+                    s.sapflow.new{end+1} = struct('start', ts(i), 'end', te(i), 'data', data)
+                end
             end
 
         end
@@ -112,10 +118,13 @@ classdef SapflowProcessor < handle
             o.spbl = s.spbl;
             o.zvbl = s.zvbl;
             o.lzvbl = s.lzvbl;
-            [segs, ~] = size(s.ss)
-            for i = 1:segs
-                [tStart, tEnd, data] = s.ss{i,:};
-                o.ss(tStart:tEnd) = data;
+            for seg = s.sapflow.cut
+                segv = seg{1};
+                o.ss(segv.start:segv.end) = NaN;
+            end
+            for seg = s.sapflow.new
+                segv = seg{1};
+                o.ss(segv.start:segv.end) = segv.data;
             end
 %             o.compute();
 %             o.sapflowCallback();

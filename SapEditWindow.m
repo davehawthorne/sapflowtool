@@ -16,9 +16,11 @@ classdef SapEditWindow < LineEditWindow
         allSfp
         sfpI
 
-        numSensors
+        %TEMP!!! numSensors
 
-        configSaver
+        projectFilename
+
+        projectConfig  % configuration common to all sensors
 
     end
 
@@ -104,43 +106,52 @@ classdef SapEditWindow < LineEditWindow
         end
 
         function saveProject(o, ~, ~)
-            for i = 1:o.numSensors
+            pfa = ProjectFileAccess();
+            pfa.writeConfig(o.projectConfig)
+
+            for i = 1:o.projectConfig.numSensors
                 s = o.allSfp{i}.getModifications()
                 o.reportStatus('Saving Sensor %d', i);
-                o.configSaver.writeSensor(i, s);
+
+                pfa.writeSensor(i, s);
             end
+            pfa.save(o.projectFilename);
             o.reportStatus('Saved');
         end
 
+
         function newProject(o, ~, ~)
-            [filename, path] = uiputfile(ConfigSaver.ConfigFilenameMask, 'Select Project File');
+            [filename, path] = uiputfile('*.xml', 'Select Project File');
             if not(filename)
                 return
             end
-            [config.sourceFilename, sourcePath] = uigetfile('*.csv', 'Select Source Data File');
-            if not(config.sourceFilename)
+            [sourceFilename, sourcePath] = uigetfile('*.csv', 'Select Source Data File');
+            if not(sourceFilename)
                 return
             end
             if not(strcmp(path, sourcePath))
                 %TEMP!!! abs paths are going to be an issue
-                config.sourceFilename = fullfile(sourcePath, config.sourceFilename);
+                sourceFilename = fullfile(sourcePath, sourceFilename);
             end
-            config.projectDesc = inputdlg('Enter a project description', 'Project Description');
-            config.sensor = {};  %TEMP!!!
+            o.projectConfig.projectDesc = inputdlg('Enter a project description', 'Project Description');
+            o.projectConfig.sourceFilename = sourceFilename
 
             o.closeDownCurrent();
 
             savedPointer = o.figureHnd.Pointer;
             o.figureHnd.Pointer = 'watch';
 
-            o.readAndProcessSourceData(config)
+            sensorState = {}
+            o.readAndProcessSourceData(sensorState)
 
             o.figureHnd.Pointer = savedPointer;
 
-            config.numSensors = o.numSensors;
+            o.projectConfig.numSensors = o.projectConfig.numSensors;
 
-            o.configSaver = ConfigSaver(fullfile(path, filename));
-            o.configSaver.writeMaster(config);
+            o.projectFilename = fullfile(path, filename)
+            pfa = ProjectFileAccess();
+            pfa.writeConfig(o.projectConfig)
+            pfa.save(o.projectFilename);
 
         end
 
@@ -157,7 +168,7 @@ classdef SapEditWindow < LineEditWindow
         end
 
         function openProject(o, ~, ~)
-            [filename, path] = uigetfile(ConfigSaver.ConfigFilenameMask, 'Select Project File');
+            [filename, path] = uigetfile('*.xml', 'Select Project File');
             if not(filename)
                 return
             end
@@ -168,23 +179,24 @@ classdef SapEditWindow < LineEditWindow
             o.figureHnd.Pointer = 'watch';
 
             o.reportStatus('Reading Config');
+            o.projectFilename = fullfile(path, filename)
+            %TEMP!!! o.configSaver = ConfigSaver(fullfile(path, filename));
+            allConfig = loadSapflowConfig(o.projectFilename);
 
-            o.configSaver = ConfigSaver(fullfile(path, filename));
-            config = o.configSaver.readAll();
+            o.projectConfig = allConfig.project;
 
-            o.readAndProcessSourceData(config)
+            o.readAndProcessSourceData(allConfig.sensors)
 
             o.figureHnd.Pointer = savedPointer;
 
         end
 
-        function readAndProcessSourceData(o, config)
+        function readAndProcessSourceData(o, sensorStates)
             o.reportStatus('Loading Source Data');
-
             try
-                [year, par, vpd, sf, doy, tod] = loadRawSapflowData(config.sourceFilename, @o.whichYear);
+                [year, par, vpd, sf, doy, tod] = loadRawSapflowData(o.projectConfig.sourceFilename, @o.whichYear);
             catch err
-                errordlg(err.message, 'Well, that didn''t work')
+                errordlg(err.message, 'Load of raw sapflow data failed')
                 return;
             end
             o.reportStatus('Cleaning');
@@ -193,19 +205,19 @@ classdef SapEditWindow < LineEditWindow
             o.reportStatus('Processing PAR');
             par = processPar(par, tod);
 
-            [~, o.numSensors] = size(sf);
+            [~, o.projectConfig.numSensors] = size(sf);
 
-            o.allSfp = cell(1, o.numSensors);
+            o.allSfp = cell(1, o.projectConfig.numSensors);
 
-            for i = 1:o.numSensors
-                o.reportStatus('Building %d of %d', i, o.numSensors);
+            for i = 1:o.projectConfig.numSensors
+                o.reportStatus('Building %d of %d', i, o.projectConfig.numSensors);
 
                 sfp = SapflowProcessor(doy, tod, vpd, par, sf(:,i));
                 sfp.baselineCallback = @o.baselineUpdated;
                 sfp.sapflowCallback = @o.sapflowUpdated;
                 sfp.undoCallback = @o.undoCallback;
-                if length(config.sensor) >= i && isstruct(config.sensor{i})
-                    sfp.setModifications(config.sensor{i})
+                if length(sensorStates) >= i && isstruct(sensorStates{i})
+                    sfp.setModifications(sensorStates{i})
                 end
                 sfp.compute();
 
@@ -237,7 +249,7 @@ classdef SapEditWindow < LineEditWindow
 
             % the joys of MATLAB's index from 1 approach ...
             indexFromZero = o.sfpI - 1;
-            indexFromZero = mod(indexFromZero + dir, o.numSensors);
+            indexFromZero = mod(indexFromZero + dir, o.projectConfig.numSensors);
             o.sfpI = indexFromZero + 1;
 
             o.deselect();
