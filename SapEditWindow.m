@@ -42,6 +42,8 @@ classdef SapEditWindow < LineEditWindow
             uimenu(mf, 'Label', 'Open Project', 'Accelerator', 'O', 'Callback', @o.openProject);
             uimenu(mf, 'Label', 'New Project', 'Accelerator', 'N', 'Callback', @o.newProject);
             uimenu(mf, 'Label', 'Save Project', 'Accelerator', 'S', 'Callback', @o.saveProject);
+            uimenu(mf, 'Label', 'Save As', 'Callback', @o.saveAs);
+            uimenu(mf, 'Label', 'Exit', 'Accelerator', 'X', 'Callback', @o.checkExit);
 
             uimenu(mh, 'Label', 'About', 'Callback', @o.helpAbout);
 
@@ -117,6 +119,19 @@ classdef SapEditWindow < LineEditWindow
             end
             pfa.save(o.projectFilename);
             o.reportStatus('Saved');
+        end
+
+
+        function checkExit(o, ~, ~)
+        end
+
+        function saveAs(o, ~, ~)
+            [filename, path] = uiputfile('*.xml', 'Select Project File');
+            if not(filename)
+                return
+            end
+            o.projectFilename = fullfile(path, filename);
+            o.saveProject(0, 0)
         end
 
 
