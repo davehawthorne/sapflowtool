@@ -98,16 +98,16 @@ classdef SapflowProcessor < handle
             s.lzvbl = o.lzvbl;
             unchanged = (o.ss == o.ssOrig) | (isnan(o.ss) & isnan(o.ssOrig));
 
-            [ts, te] = getRanges(~unchanged)
-            len = length(ts)
+            [ts, te] = getRanges(~unchanged);
+            len = length(ts);
             s.sapflow.cut = {};
             s.sapflow.new = {};
             for i = 1:len
-                data = o.ss(ts(i):te(i))
+                data = o.ss(ts(i):te(i));
                 if all(isnan(data))
-                    s.sapflow.cut{end+1} = struct('start', ts(i), 'end', te(i))
+                    s.sapflow.cut{end+1} = struct('start', ts(i), 'end', te(i));
                 else
-                    s.sapflow.new{end+1} = struct('start', ts(i), 'end', te(i), 'data', data)
+                    s.sapflow.new{end+1} = struct('start', ts(i), 'end', te(i), 'data', data);
                 end
             end
 
@@ -217,15 +217,15 @@ classdef SapflowProcessor < handle
             nDOY = o.doy;
             nDOY(o.tod < 1000) = nDOY(o.tod < 1000) - 1;
 
-            [spbl, ~, zvbl, lzvbl] = BL_auto( ...
+            [mySpbl, ~, myZvbl, myLzvbl] = BL_auto( ...
                 o.ss, o.doy, nDOY, o.Timestep, o.par, o.PARthresh, ...
                 o.vpd, o.VPDthresh, o.VPDtime ...
             );
 
 
-            o.spbl = oneByN(spbl);  %TEMP!!! there must be a nicer way of ensuring 1xN shape.
-            o.zvbl = oneByN(zvbl);
-            o.lzvbl = oneByN(lzvbl);
+            o.spbl = oneByN(mySpbl);  %TEMP!!! there must be a nicer way of ensuring 1xN shape.
+            o.zvbl = oneByN(myZvbl);
+            o.lzvbl = oneByN(myLzvbl);
 
             iValidSamples = find(isfinite(o.ss));
             iFirstValid = min(iValidSamples);
@@ -329,18 +329,18 @@ classdef SapflowProcessor < handle
                 ts = regions(row,1);
                 te = regions(row,2);
                 i = find(ts <= o.bla & te >= o.bla);
-                blaCutI = [blaCutI, i];
+                blaCutI = [blaCutI, i]; %#ok<AGROW>
 
                 i = find(ts <= o.spbl & te >= o.spbl);
-                spblCutI = [spblCutI, i];
+                spblCutI = [spblCutI, i]; %#ok<AGROW>
 
                 i = find(ts <= o.zvbl & te >= o.zvbl);
-                zvblCutI = [zvblCutI, i];
+                zvblCutI = [zvblCutI, i]; %#ok<AGROW>
 
                 i = find(ts <= o.lzvbl & te >= o.lzvbl);
-                lzvblCutI = [lzvblCutI, i];
+                lzvblCutI = [lzvblCutI, i]; %#ok<AGROW>
 
-                ssCutSegs{end+1} = {ts, te, o.ss(ts:te)};
+                ssCutSegs{end+1} = {ts, te, o.ss(ts:te)}; %#ok<AGROW>
 
                 segmentCallback(ts, te)
             end

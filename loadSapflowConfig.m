@@ -1,4 +1,10 @@
 function c = loadSapflowConfig(filename)
+    % Reads the project configuration and sensor data state from an XML
+    % file.  Processes the information via a DOM intermediate.
+    % It either returns a structure containing the config data or throws a
+    % MException with 'sapflowConfig:fileError'.
+    %
+    % This is the complement of ProjectFileAccess.
     try
         top = xmlread(filename);
     catch err

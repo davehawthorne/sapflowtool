@@ -1,17 +1,27 @@
 classdef ProjectFileAccess < handle
+    % Used to constuct the XML based project file for the sapflow tool.
+    % Does this by building up a DOM document intermediate and calling
+    % MATLAB's xmlwrite().
+    %
+    % The code used to read these files is located in loadSapflowConfig().
+
     properties (Access = private)
         docNode
     end
     properties (GetAccess = public, SetAccess = private)
         docRootNode
     end
+
     methods (Access = public)
 
         function o = ProjectFileAccess()
-            % Constructor
+            % Constructor.  Creates the intermediate document.
             o.docNode = com.mathworks.xml.XMLUtils.createDocument('SapflowProject');
-            o.docRootNode = o.docNode.getDocumentElement;
-            o.docNode.setAttribute('protocolVersion', num2str(1));
+            o.docRootNode = o.docNode.getDocumentElement();
+
+            % This protocol number might be used by future versions of the
+            % code to provide backwards compatability.
+            o.docRootNode.setAttribute('protocolVersion', num2str(1));
         end
 
 
