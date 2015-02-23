@@ -41,6 +41,7 @@ classdef LineEditWindow < handle
                 'units', 'normalized', ...
                 'OuterPosition', [0, 0.05, 1, 0.95], ...
                 'ToolBar', 'none', ...
+                'NumberTitle', 'off', ...
                 'MenuBar', 'none');
 
             % To aid in placement of charts and controls, set up a 25 x 25
@@ -51,12 +52,16 @@ classdef LineEditWindow < handle
             ys = pos(4)/25; % height
             o.figPosScaler = [xs, ys, xs, ys];
 
-            % Create the 4 charts
+            % Create the 4 charts, butting the full plots together and the
+            % zoom plots together
             %TEMP!!! naming sapflow tool specific.
-            o.charts.dtFull = o.makeChart([1, 22, 23, 2]);
-            o.charts.kFull =  o.makeChart([1, 19, 23, 2]);
-            o.charts.dtZoom = o.makeChart([1, 10, 17, 8]);
-            o.charts.kZoom =  o.makeChart([1, 1, 17, 8]);
+            o.charts.dtFull = o.makeChart([1, 22.25, 23, 1.75]);
+            o.charts.kFull =  o.makeChart([1, 20, 23, 1.75]);
+            o.charts.dtZoom = o.makeChart([1, 10.25, 17, 8.75]);
+            o.charts.kZoom =  o.makeChart([1, 1, 17, 8.75]);
+            % don't label the top plots' X axis
+            o.charts.dtFull.XTickLabel = [];
+            o.charts.dtZoom.XTickLabel = [];
 
             o.statusBar = uicontrol( ...
                 'Parent', o.figureHnd, ...
@@ -178,6 +183,12 @@ classdef LineEditWindow < handle
             end
         end
 
+        function setWindowTitle(o, format, varargin)
+            % Sets the text at the top of the window.  Accepts printf()
+            % arguments.
+            o.figureHnd.Name = sprintf(format, varargin{:});
+        end
+
     end
 
     methods (Access = private)
@@ -202,8 +213,18 @@ classdef LineEditWindow < handle
 
         function a = makeChart(o, pos)
             % Helper function used by constructor.
-            a = axes('Units', 'pixels', 'Parent', o.figureHnd, 'Position', pos .* o.figPosScaler, 'PickableParts', 'none');
-            hold(a, 'on');
+
+            % Charts have a bounding box, grids and don't respond to mouse
+            % click by default.
+            a = axes( ...
+                'Units', 'pixels', ...
+                'Parent', o.figureHnd, ...
+                'Position', pos .* o.figPosScaler, ...
+                'PickableParts', 'none', ...
+                'XGrid', 'on', 'YGrid', 'on', ...
+                'Box', 'on' ...
+            );
+            hold(a, 'on');  % so we can add numerous lines
         end
 
 

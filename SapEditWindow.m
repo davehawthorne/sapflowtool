@@ -43,9 +43,12 @@ classdef SapEditWindow < LineEditWindow
             uimenu(mf, 'Label', 'New Project', 'Accelerator', 'N', 'Callback', @o.newProject);
             uimenu(mf, 'Label', 'Save Project', 'Accelerator', 'S', 'Callback', @o.saveProject);
             uimenu(mf, 'Label', 'Save As', 'Callback', @o.saveAs);
+            uimenu(mf, 'Label', 'Export', 'Callback', @o.export);
             uimenu(mf, 'Label', 'Exit', 'Accelerator', 'X', 'Callback', @o.checkExit);
 
             uimenu(mh, 'Label', 'About', 'Callback', @o.helpAbout);
+
+            o.setWindowTitle('Sapflow Tool')
 
             % Add in controls
             o.addButton('nextSensor',  'next sensor',         'downarrow',  'next sensor',       2, 9, @(~,~)o.selectSensor(1));
@@ -131,6 +134,7 @@ classdef SapEditWindow < LineEditWindow
                 return
             end
             o.projectFilename = fullfile(path, filename);
+            o.setWindowTitle('Sapflow Tool: %s', o.projectFilename)
             o.saveProject(0, 0)
         end
 
@@ -163,6 +167,7 @@ classdef SapEditWindow < LineEditWindow
             o.projectConfig.numSensors = o.projectConfig.numSensors;
 
             o.projectFilename = fullfile(path, filename);
+            o.setWindowTitle('Sapflow Tool: %s', o.projectFilename)
             pfa = ProjectFileAccess();
             pfa.writeConfig(o.projectConfig)
             pfa.save(o.projectFilename);
@@ -194,6 +199,7 @@ classdef SapEditWindow < LineEditWindow
 
             o.reportStatus('Reading Config');
             o.projectFilename = fullfile(path, filename);
+            o.setWindowTitle('Sapflow Tool: %s', o.projectFilename)
             try
                 allConfig = loadSapflowConfig(o.projectFilename);
             catch err
@@ -215,6 +221,24 @@ classdef SapEditWindow < LineEditWindow
 
         end
 
+
+        function export(o, ~, ~)
+            [filename, path] = uiputfile('*.csv', 'Select Export File');
+            if not(filename)
+                return
+            end
+            kLines = zeros(o.projectConfig.numSensors, o.allSfp{1}.ssL);
+            for i = 1:o.projectConfig.numSensors
+                thisSfp = o.allSfp{i};
+                kLines(i,:) = thisSfp.k_line;
+            end
+            try
+                csvwrite(fullfile(path, filename), kLines);
+            catch err
+                errordlg(err.message, 'Export failed')
+            end
+
+        end
         function readAndProcessSourceData(o, sensorStates)
             o.reportStatus('Loading Source Data');
             try
