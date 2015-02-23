@@ -90,6 +90,13 @@ classdef SapflowProcessor < handle
         end
 
 
+        function isChange = changesMade(o)
+            % Called before potentially discarding work by closed
+            % application or project.
+            isChange = not(o.cmdStack.isEmpty());
+        end
+
+
         function s = getModifications(o)
             %
             s.bla = o.bla;
@@ -111,6 +118,8 @@ classdef SapflowProcessor < handle
                 end
             end
 
+            o.emptyUndoStack();
+
         end
 
         function setModifications(o, s)
@@ -126,9 +135,9 @@ classdef SapflowProcessor < handle
                 segv = seg{1};
                 o.ss(segv.start:segv.end) = segv.data;
             end
-%             o.compute();
-%             o.sapflowCallback();
-%             o.baselineCallback();
+
+            o.emptyUndoStack();
+
         end
 
         function undo(o)
@@ -371,6 +380,10 @@ classdef SapflowProcessor < handle
             end
         end
 
+        function emptyUndoStack(o)
+            o.cmdStack = Stack(); % start a new stack
+            o.undoCallback(0);  % report up that the stack is empty.
+        end
 
     end
 

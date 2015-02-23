@@ -49,6 +49,7 @@ classdef SapEditWindow < LineEditWindow
             uimenu(mh, 'Label', 'About', 'Callback', @o.helpAbout);
 
             o.setWindowTitle('Sapflow Tool')
+            o.figureHnd.CloseRequestFcn = @o.checkExit;
 
             % Add in controls
             o.addButton('nextSensor',  'next sensor',         'downarrow',  'next sensor',       2, 9, @(~,~)o.selectSensor(1));
@@ -93,6 +94,8 @@ classdef SapEditWindow < LineEditWindow
             end
 
             o.zoomer.createZoomAreaIndicators();
+
+            o.projectConfig.numSensors = 0;
          end
 
 
@@ -126,6 +129,29 @@ classdef SapEditWindow < LineEditWindow
 
 
         function checkExit(o, ~, ~)
+            if o.checkForUnsaved('exiting')
+                delete(o.figureHnd);
+            end
+        end
+
+
+        function doAction = checkForUnsaved(o, action)
+
+            if o.anyChangesMade()
+                message = sprintf('Save all changes before %s?', action);
+                action = questdlg(message, 'Unsaved changes','Save and continue','Don''t save changes', 'Cancel', 'Cancel');
+                switch action(1)
+                    case 'S'
+                        o.saveProject(0,0);
+                        doAction = 1;
+                    case 'D'
+                        doAction = 1;
+                    case 'C'
+                        doAction = 0;
+                end
+            else
+                doAction = 1;
+            end
         end
 
         function saveAs(o, ~, ~)
@@ -140,6 +166,9 @@ classdef SapEditWindow < LineEditWindow
 
 
         function newProject(o, ~, ~)
+            if not(o.checkForUnsaved('opening new project'))
+                return;
+            end
             [filename, path] = uiputfile('*.xml', 'Select Project File');
             if not(filename)
                 return
@@ -187,6 +216,9 @@ classdef SapEditWindow < LineEditWindow
         end
 
         function openProject(o, ~, ~)
+            if not(o.checkForUnsaved('opening another project'))
+                return;
+            end
             [filename, path] = uigetfile('*.xml', 'Select Project File');
             if not(filename)
                 return
@@ -223,6 +255,7 @@ classdef SapEditWindow < LineEditWindow
 
 
         function export(o, ~, ~)
+            % The user wants to export data from the tool.
             [filename, path] = uiputfile('*.csv', 'Select Export File');
             if not(filename)
                 return
@@ -512,6 +545,15 @@ classdef SapEditWindow < LineEditWindow
             end
         end
 
-
+        function isChange = anyChangesMade(o)
+            % Checks if any sensor has had changes made to it.
+            for i = 1:o.projectConfig.numSensors
+                if o.allSfp{i}.changesMade();
+                    isChange = 1;
+                    return;
+                end
+            end
+            isChange = 0;
+        end
     end
 end
