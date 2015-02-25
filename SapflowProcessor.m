@@ -31,6 +31,8 @@ classdef SapflowProcessor < handle
         k_line
         ka_line
         nvpd
+
+        config
     end
 
     properties (Access = private)
@@ -61,14 +63,14 @@ classdef SapflowProcessor < handle
 
     methods
 
-        function o = SapflowProcessor(doy, tod, vpd, par, ss)
+        function o = SapflowProcessor(doy, tod, vpd, par, ss, config)
             % Constructor just stores the passed values.
             o.doy = doy;
             o.tod = tod;
             o.vpd = vpd;
             o.par = par;
-            o.ssOrig = ss;
-            o.ss = ss;
+            o.ssOrig = oneByN(ss);
+            o.ss = oneByN(ss);
             o.ssL = length(o.ss);
             o.spbl = [1,o.ssL];
             o.zvbl = [1,o.ssL];
@@ -76,7 +78,10 @@ classdef SapflowProcessor < handle
             o.bla = [1,o.ssL];
 
             o.cmdStack = Stack(); % Used for undoing commands.
+
+            o.config = config;
         end
+
 
         function setup(o)
             % Called each time this SFP gets focus
@@ -87,6 +92,11 @@ classdef SapflowProcessor < handle
                 o.undoCallback(nextCmd{1});
             end
 
+        end
+
+
+        function cleanRawData(o)
+            o.ss = cleanRawFluxData(o.ss, o.config);
         end
 
 
@@ -257,12 +267,12 @@ classdef SapflowProcessor < handle
             % Based on the sapflow, bla and VPD data, calculate the K, KA
             % and NVPD values.
             %
-            blv = interp1(o.zvbl, o.ss(o.zvbl), (1:o.ssL))';
+            blv = interp1(o.zvbl, o.ss(o.zvbl), (1:o.ssL));
 
             o.k_line = blv ./ o.ss - 1;
             o.k_line(o.k_line < 0) = 0;
 
-            blv = interp1(o.bla, o.ss(o.bla), (1:o.ssL))';
+            blv = interp1(o.bla, o.ss(o.bla), (1:o.ssL));
             o.ka_line = blv ./ o.ss - 1;
             o.ka_line(o.ka_line < 0) = 0;
 

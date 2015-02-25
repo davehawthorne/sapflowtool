@@ -1,45 +1,27 @@
 % process_dt_clean.m
 % Sap flux raw data cleaner
-function sf = cleanRawFluxData(sf)
+function ss = cleanRawFluxData(ss, config)
 
+    ss(ss < config.minRawValue) = NaN;
+    ss(ss > config.maxRawValue) = NaN;
 
-    %TEMP!!!sf0=sf;
+    % Deletes points either side of where temperature jumps too much
+    dx = ss([1,1:end-1]) - ss;
+    bad = abs(dx) > config.maxRawStep;
+    bad = bad | [bad(2:end), 0];
+    ss(bad) = NaN;
 
-    sf(sf<0.5)=nan;
-    sf(sf>30)=nan;
-    sf(sf<=0)=nan;
-
-    [sfrows,sfcols]=size(sf);
-
-    % Deletes points where temperature jumps more than 1 degree
-    for c=1:sfcols
-        for r=2:sfrows
-            dx=sf(r-1,c)-sf(r,c);
-            if abs(dx)>1.5
-                sf(r,c)=nan;
-            end
-        end
-    end
-
-    % pointfill: interpolates if a single point is missing
-    for c=1:sfcols
-        for r=2:sfrows-1
-            dx=sf(r-1:r+1,c);
-            if dx(1)>0 && dx(3)>0 && isnan(dx(2))
-                sf(r,c)=mean([dx(1) dx(3)]);
-            end
-        end
-    end
+    % Replaces individual samples of NaN with the average of the samples
+    % either side.
+    nans = isnan(ss);
+    loneNanI = nans & [0, ~nans(1:end-1)] & [~nans(2:end), 0];
+    valuesBefore = ss(loneNanI([2:end, end]));
+    valuesAfter = ss(loneNanI([1, 1:end-1]));
+    ss(loneNanI) = (valuesBefore + valuesAfter) / 2;
 
     % point delete: deletes single point surrounded by missing values
-    for c=1:sfcols
-        for r=2:sfrows-1
-            dx=sf(r-1:r+1,c);
-            if dx(2)>0 && isnan(dx(3)) && isnan(dx(1))
-                sf(r,c)=nan;
-            end
-        end
-    end
+
+    ss = cutShortRuns(ss, config.minRunLength);
 
 end
 

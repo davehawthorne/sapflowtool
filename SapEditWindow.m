@@ -111,23 +111,19 @@ classdef SapEditWindow < LineEditWindow
             msgbox({'Created by USDA FS SRS Coweeta', 'License text', '2015'}, 'Sapflow Edit Tool');
         end
 
-        function year = whichYear(~, years)
-            dialogOut = inputdlg('Which year? (', '', 1, {num2str(years(1))});
-            year = str2double(dialogOut{:});
-        end
-
         function saveProject(o, ~, ~)
-            o.startWait('Saving', o.projectConfig.numSensors + 1);
+            o.startWait('Saving');
             pfa = ProjectFileAccess();
             pfa.writeConfig(o.projectConfig)
+            ns = o.projectConfig.numSensors;
 
-            for i = 1:o.projectConfig.numSensors
+            for i = 1:ns
                 s = o.allSfp{i}.getModifications();
 
-                o.updateWait('Doing sensor %d', i);
+                o.updateWait(i/ns, 'Doing sensor %d', i);
                 pfa.writeSensor(i, s);
             end
-            o.updateWait('Writing file');
+            o.updateWait(1,'Writing file');
             pfa.save(o.projectFilename);
             o.endWait();
         end
@@ -155,9 +151,11 @@ classdef SapEditWindow < LineEditWindow
                         doAction = 0;
                 end
             else
+                % no changes made
                 doAction = 1;
             end
         end
+
 
         function saveAs(o, ~, ~)
             [filename, path] = uiputfile('*.xml', 'Select Project File');
@@ -191,7 +189,7 @@ classdef SapEditWindow < LineEditWindow
 
             o.closeDownCurrent();
 
-            o.startWait('Loading', 1);
+            o.startWait('Loading');
 
             o.readAndProcessSourceData({})
 
@@ -201,9 +199,8 @@ classdef SapEditWindow < LineEditWindow
 
             o.projectFilename = fullfile(path, filename);
             o.setWindowTitle('Sapflow Tool: %s', o.projectFilename)
-            pfa = ProjectFileAccess();
-            pfa.writeConfig(o.projectConfig)
-            pfa.save(o.projectFilename);
+
+            saveProject(0, 0)
 
         end
 
@@ -281,30 +278,37 @@ classdef SapEditWindow < LineEditWindow
         function readAndProcessSourceData(o, sensorStates)
             o.updateWait(0.1, 'Loading Source Data');
             try
-                [~, par, vpd, sf, doy, tod] = loadRawSapflowData(o.projectConfig.sourceFilename, @o.whichYear);
+                [~, par, vpd, sf, doy, tod] = loadRawSapflowData(o.projectConfig.sourceFilename);
             catch err
                 errordlg(err.message, 'Load of raw sapflow data failed')
                 return;
             end
             o.updateWait(0.2, 'Cleaning');
 
-            sf = cleanRawFluxData(sf);
+            o.projectConfig.minRawValue = 0.5;
+            o.projectConfig.maxRawValue = 30;
+            o.projectConfig.maxRawStep = 1.5;
+            o.projectConfig.minRunLength = 4;
+            %TEMP!!! sf = cleanRawFluxData(sf, config);
             o.updateWait(0.3, 'Processing PAR');
             par = processPar(par, tod);
 
             [~, o.projectConfig.numSensors] = size(sf);
+            ns = o.projectConfig.numSensors;
 
-            o.allSfp = cell(1, o.projectConfig.numSensors);
+            o.allSfp = cell(1, ns);
 
             for i = 1:o.projectConfig.numSensors
-                o.updateWait(0.3 + 0.7 * i / o.projectConfig.numSensors , 'Building %d of %d', i, o.projectConfig.numSensors);
+                o.updateWait(0.3 + 0.7 * i / ns , 'Building %d of %d', i, ns);
 
-                thisSfp = SapflowProcessor(doy, tod, vpd, par, sf(:,i));
+                thisSfp = SapflowProcessor(doy, tod, vpd, par, sf(:,i), o.projectConfig);
                 thisSfp.baselineCallback = @o.baselineUpdated;
                 thisSfp.sapflowCallback = @o.sapflowUpdated;
                 thisSfp.undoCallback = @o.undoCallback;
                 if length(sensorStates) >= i && isstruct(sensorStates{i})
                     thisSfp.setModifications(sensorStates{i})
+                else
+                    thisSfp.cleanRawData()
                 end
                 thisSfp.compute();
 
@@ -553,7 +557,7 @@ classdef SapEditWindow < LineEditWindow
 
 
         function autoSetBaseline(o, ~, ~)
-            o.startWait('setting baseline', 1);
+            o.startWait('Setting Baseline');
             o.sfp.auto();
             o.endWait();
         end
