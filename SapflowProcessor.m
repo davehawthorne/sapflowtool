@@ -43,10 +43,6 @@ classdef SapflowProcessor < handle
 
         % These allow configuration of the tool...
         Timestep = 15;
-        PARthresh=100; % values less than threshold are considered nighttime
-        % VPD
-        VPDthresh=0.05; % values less than threshold are considered effectively zero
-        VPDtime=2; % length in HOURS of time segment of low-VPD conditions
 
         % External function to be called when the baseline data is changed;
         % this will usually be to update a graph to reflect the change.
@@ -237,8 +233,8 @@ classdef SapflowProcessor < handle
             nDOY(o.tod < 1000) = nDOY(o.tod < 1000) - 1;
 
             [mySpbl, ~, myZvbl, myLzvbl] = BL_auto( ...
-                o.ss', o.doy, nDOY, o.Timestep, o.par, o.PARthresh, ...
-                o.vpd, o.VPDthresh, o.VPDtime ...
+                o.ss', o.doy, nDOY, o.Timestep, o.par, o.config.parThresh, ...
+                o.vpd, o.config.vpdThresh, o.config.vpdTime ...
             );
 
 

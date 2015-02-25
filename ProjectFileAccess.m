@@ -47,6 +47,9 @@ classdef ProjectFileAccess < handle
             o.addFloatElement(element, 'MaxRawValue', s.maxRawValue);
             o.addFloatElement(element, 'MaxRawStep', s.maxRawStep);
             o.addIntegerElement(element, 'MinRunLength', s.minRunLength);
+            o.addFloatElement(element, 'ParThresh', s.parThresh);
+            o.addFloatElement(element, 'VpdThresh', s.vpdThresh);
+            o.addFloatElement(element, 'VpdTime', s.vpdTime);
 
             o.docRootNode.appendChild(element);
         end

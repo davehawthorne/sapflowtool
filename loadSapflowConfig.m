@@ -31,11 +31,14 @@ function config = readProjectConfig(parent)
     config.projectName = getNodeStringValue(node, 'ProjectName');
     config.projectDesc = getNodeStringValue(node, 'ProjectDesc');
     config.sourceFilename = getNodeStringValue(node, 'SourceFilename');
-    config.numSensors = getNodeIntegerValues(node, 'NumberSensors');
-    config.minRawValue = getNumericalValue(node, 'MinRawValue');
-    config.maxRawValue = getNumericalValue(node, 'MaxRawValue');
-    config.maxRawStep = getNumericalValue(node, 'MaxRawStep');
-    config.minRunLength = getNodeIntegerValues(node, 'MinRunLength');
+    config.numSensors = getNodeIntegerValues(node, 'NumberSensors', 1);
+    config.minRawValue = getNodeFloatValues(node, 'MinRawValue', 1);
+    config.maxRawValue = getNodeFloatValues(node, 'MaxRawValue',1 );
+    config.maxRawStep = getNodeFloatValues(node, 'MaxRawStep', 1);
+    config.minRunLength = getNodeIntegerValues(node, 'MinRunLength', 1);
+    config.parThresh = getNodeFloatValues(node, 'ParThresh', 1);
+    config.vpdThresh = getNodeFloatValues(node, 'VpdThresh', 1);
+    config.vpdTime = getNodeFloatValues(node, 'VpdTime', 1);
 end
 
 function sensors = readSensorsData( parent)
@@ -48,10 +51,10 @@ function sensors = readSensorsData( parent)
         node = nodes.item(i-1);
         num = getIntegerAttribute(node, 'number');
 
-        sensor.bla = getNodeIntegerValues(node, 'bla');
-        sensor.spbl = getNodeIntegerValues(node, 'spbl');
-        sensor.zvbl = getNodeIntegerValues(node, 'zvbl');
-        sensor.lzvbl = getNodeIntegerValues(node, 'lzvbl');
+        sensor.bla = getNodeIntegerValues(node, 'bla', 0);
+        sensor.spbl = getNodeIntegerValues(node, 'spbl', 0);
+        sensor.zvbl = getNodeIntegerValues(node, 'zvbl', 0);
+        sensor.lzvbl = getNodeIntegerValues(node, 'lzvbl', 0);
 
         sensor.sapflow.cut = {};
         sensor.sapflow.new = {};
@@ -104,11 +107,18 @@ function value = getNumericalValue(node)
 end
 
 
-function values = getNodeIntegerValues(parent, nodeName)
-    node = getOnly(parent, nodeName);
-    values = getNumericalValue(node);
+function values = getNodeIntegerValues(parent, nodeName, maxCount)
+    values = getNodeFloatValues(parent, nodeName, maxCount);
     if not(all(values == round(values)))
         throw(MException('sapflowConfig:fileError', 'Expected integers for node "%s", not floats', nodeName));
+    end
+end
+
+function values = getNodeFloatValues(parent, nodeName, maxCount)
+    node = getOnly(parent, nodeName);
+    values = getNumericalValue(node);
+    if maxCount && length(values) > maxCount
+        throw(MException('sapflowConfig:fileError', 'Expected no more than %d values for node "%s", got %d', maxCount, nodeName, length(values)));
     end
 end
 
