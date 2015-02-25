@@ -34,7 +34,7 @@ classdef SapEditWindow < LineEditWindow
             o@LineEditWindow(); % Create generic window.
 
             mf = uimenu(o.figureHnd, 'Label', 'File');
-            me = uimenu(o.figureHnd, 'Label', 'Edit'); %#ok<NASGU>  %TEMP!!!
+            me = uimenu(o.figureHnd, 'Label', 'Edit');
             mh = uimenu(o.figureHnd, 'Label', 'Help');
 
             uimenu(mf, 'Label', 'Open Project', 'Accelerator', 'O', 'Callback', @o.openProject);
@@ -50,19 +50,23 @@ classdef SapEditWindow < LineEditWindow
             o.figureHnd.CloseRequestFcn = @o.checkExit;
 
             % Add in controls
-            o.addButton('nextSensor',  'next sensor',         'downarrow',  'next sensor',       2, 9, @(~,~)o.selectSensor(1));
-            o.addButton('prevSensor', 'prev sensor',         'uparrow', 'prev sensor',      2, 10, @(~,~)o.selectSensor(-1));
-            o.addButton('panLeft',  '< pan',         'leftarrow',  'pan focus area left ("<-")',       1, 1, @(~,~)o.zoomer.pan(-0.8));
-            o.addButton('panRight', 'pan >',         'rightarrow', 'pan focus area right ("->")',      2, 1, @(~,~)o.zoomer.pan(+0.8));
-            o.addButton('zoomIn',   'zoom in',       'add',        'narrow focus area duration ("+")', 1, 2, @(~,~)o.zoomer.zoom(0.8));
-            o.addButton('zoomOut',  'zoom out',      'subtract',   'expand focus area duration ("-")', 2, 2, @(~,~)o.zoomer.zoom(1.25));
-            o.addButton('zoomReg',  'zoom sel',      'z',          'zoom to selection',                1, 3, @o.zoomtoRegion);
-            o.addButton('delBla',   'del BL anchors','b',          'delete baseline anchors in range (d)', 1, 5, @o.delBla);
-            o.addButton('deleteSapflow',   'delete SF data','d',          'delete selected sapflow data',         1, 7, @o.deleteSapflow);
-            o.addButton('interpolateSapflow',   'interpolate SF','i',          'interpolate selected sapflow data',    2, 7, @o.interpolateSapflow);
-            o.addButton('anchorBla','anchor BL',     'a',          'anchor baseline to suggested points',  3, 7, @o.anchorBla);
-            o.addButton('undo',     'undo last',     'u',          'undo last command',                    2, 6, @(~,~)o.sfp.undo());
-            o.addButton('auto',     'auto BL',     'A',          'apply automatic baseline anchors',       1, 11, @o.autoSetBaseline);
+            o.addCommand('nextSensor',  0, 'next sensor',         'downarrow',  'next sensor',       2, 13, @(~,~)o.selectSensor(1));
+            o.addCommand('prevSensor', 0, 'prev sensor',         'uparrow', 'prev sensor',      2, 15, @(~,~)o.selectSensor(-1));
+            o.addCommand('panLeft',  0, '< pan',         'leftarrow',  'pan focus area left',       1, 14, @(~,~)o.zoomer.pan(-0.8));
+            o.addCommand('panRight', 0, 'pan >',         'rightarrow', 'pan focus area right',      3, 14, @(~,~)o.zoomer.pan(+0.8));
+            o.addCommand('zoomIn',   0, 'zoom in',       'add',        'narrow focus area duration', 1, 11, @(~,~)o.zoomer.zoom(0.8));
+            o.addCommand('zoomOut',  0, 'zoom out',      'subtract',   'expand focus area duration', 3, 11, @(~,~)o.zoomer.zoom(1.25));
+            o.addCommand('zoomReg',  0, 'zoom sel',      'z',          'zoom to selection',                2, 11, @o.zoomtoRegion);
+
+            o.addCommand('delBla',   me, 'del BL anchors','delete',          'delete baseline anchors in range', 1, 8, @o.delBla);
+            o.addCommand('deleteSapflow', me,  'delete SF data','d',          'delete selected sapflow data',         1, 7, @o.deleteSapflow);
+            o.addCommand('interpolateSapflow', me,  'interpolate SF','i',          'interpolate selected sapflow data',    2, 7, @o.interpolateSapflow);
+            o.addCommand('anchorBla', me, 'anchor BL',     'a',          'anchor baseline to suggested points',  3, 7, @o.anchorBla);
+            o.addCommand('auto', me,     'auto BL',     'shift-a',          'apply automatic baseline anchors',       3, 8, @o.autoSetBaseline);
+
+            o.addCommand('undo', me,    'undo last',     'control-z',          'undo last command',                    2, 5, @(~,~)o.sfp.undo());
+
+            %TEMP!!! o.addCommand('addBla',   0, 'add BL anchor','b',          'add baseline anchors at cursor (b)', 0, 0, @o.addBla);
 
             % Specify all the plot lines we'll use.
             o.lines = struct();

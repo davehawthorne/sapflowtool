@@ -12,8 +12,9 @@ classdef LineEditWindow < handle
     properties (Access = private)
         figPosScaler % a 1 x 4 array used for placement in figure.
 
-        buttons = struct(); % handles to uicontrols: built by addButton
-        keys = struct(); % one to one mapping with buttons: built by addButton
+        buttons = struct(); % handles to uicontrols: built by addCommand
+        keys = struct(); % one to one mapping with buttons: built by addCommand
+        menus = struct();
 
         statusBar  % a text UI Control accessed with updateDisplay()
 
@@ -101,14 +102,14 @@ classdef LineEditWindow < handle
         end
 
 
-        function addButton(o, name, text, key, toolTip, col, row, callback)
+        function addCommand(o, name, menu, text, key, toolTip, col, row, callback)
             % Creates a button and corresponding keyboard shortcut
             %
             % The button is located in the figure's button region.
             %
             % name: used to refer to button from within code
             % text: to display on button
-            % key: associated keyborad shortcut (the same callback is
+            % key: associated keyboard shortcut (the same callback is
             % called by both
             % toolTip: displayed text when cursor dwells over button
             % col, row: position of button in region
@@ -117,17 +118,30 @@ classdef LineEditWindow < handle
             % By default the command is disabled - see enableCommands()
             %
 
-            %TEMP!!! need to handle modifier keys for shortcuts
+            if row && col
+                o.buttons.(name) = uicontrol( ...
+                    'Parent', o.figureHnd, ...
+                    'Style', 'pushbutton', 'String', text,...
+                    'Callback', callback, ...
+                    'Position', o.figPosScaler .* [col * 1.75 + 17.5, row + 1, 1.5, 0.8], ...
+                    'TooltipString', sprintf('%s ("%s")',toolTip, key), ...
+                    'KeyPressFcn', @o.handleKeypress, ...
+                    'Enable', 'Off' ...
+                );
+            end
 
-            o.buttons.(name) = uicontrol( ...
-                'Parent', o.figureHnd, ...
-                'Style', 'pushbutton', 'String', text,...
-                'Callback', callback, ...
-                'Position', o.figPosScaler .* [col * 1.75 + 17.5, row + 1, 1.5, 0.8], ...
-                'TooltipString', toolTip, ...
-                'KeyPressFcn', @o.handleKeypress, ...
-                'Enable', 'Off' ...
-            );
+            if isa(menu, 'matlab.ui.container.Menu')
+                o.menus.(name) = uimenu( ...
+                    menu, ...
+                    'Label', text, ...
+                    'Callback', callback, ...
+                    'Enable', 'Off' ...
+                );
+                if strfind(key, 'control-')
+                    o.menus.(name).Accelerator = key(end);
+                end
+            end
+
             o.keys.(name) = struct( ...
                 'Key', key, 'Enable', 0, 'Callback', callback ...
             );
@@ -139,34 +153,31 @@ classdef LineEditWindow < handle
             %
             % Where names is a 1 x N cell array of strings corresponding
             % with the controls to turn off.  These are the names passed to
-            % addButton().
+            % addCommand().
             %
             % If names is empty then all commands are disabled.
             %
             % see also: enableCommands
 
-            %TEMP!!! naming inconsistent with addButton()
-            if isempty(names)
-                % select all
-                names = fieldnames(o.keys)';
-            end
-            for name = names
-                o.keys.(name{1}).Enable = 0;
-                o.buttons.(name{1}).Enable = 'Off';
-            end
+            %TEMP!!! naming inconsistent with addCommand()
+            o.setCommandState(names, 'Off');
         end
+
 
         function enableCommands(o, names)
             % The counterpart to disableCommands
-            for name = names
-                o.keys.(name{1}).Enable = 1;
-                o.buttons.(name{1}).Enable = 'On';
-            end
+            o.setCommandState(names, 'On')
         end
 
         function renameCommand(o, name, string)
-            o.buttons.(name).String = string;
+            if isfield(o.buttons, name)
+                o.buttons.(name).String = string;
+            end
+            if isfield(o.menus, name)
+                o.menus.(name).Label = string;
+            end
         end
+
 
         function reportStatus(o, format, varargin)
             % Updates the status bar
@@ -223,22 +234,44 @@ classdef LineEditWindow < handle
 
     methods (Access = private)
 
+        function setCommandState(o, names, state)
+            if isempty(names)
+                % select all
+                names = fieldnames(o.keys)';
+            end
+            for name = names
+                nameV = name{1};
+                o.keys.(nameV).Enable = state;
+                if isfield(o.buttons, nameV)
+                    o.buttons.(nameV).Enable = state;
+                end
+                if isfield(o.menus, nameV)
+                    o.menus.(nameV).Enable = state;
+                end
+            end
+        end
+
         function handleKeypress(o, ~, event)
             % Callback for any keypress event.
             %
             % Searches the keys structure for the corresponding key and, if
             % found, calls the corresponding function.
-            key = event.Key;
+            key = sprintf('%s%s',sprintf('%s-', event.Modifier{:}), event.Key);
             for name = fieldnames(o.keys)'
                 keyData = o.keys.(name{1});
                 % If this is the key, and it's enabled ...
-                if strcmp(keyData.Key, key) && keyData.Enable
-                    % ... execute the corresponding command.
-                    keyData.Callback(0,0);
+                if strcmp(keyData.Key, key)
+                    if strcmp(keyData.Enable, 'On')
+                        % ... execute the corresponding command.
+                        keyData.Callback(0,0);
+                    end
                     return;
                 end
             end
-            sprintf('Unhandled key: %s', event.Key)
+            if strcmp(key, 'alt-alt')
+            else
+                fprintf('Unhandled key: "%s"\n', key);
+            end
         end
 
         function a = makeChart(o, pos)
