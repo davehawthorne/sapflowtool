@@ -16,8 +16,6 @@ classdef SapEditWindow < LineEditWindow
         allSfp
         sfpI
 
-        %TEMP!!! numSensors
-
         projectFilename
 
         projectConfig  % configuration common to all sensors
@@ -43,7 +41,7 @@ classdef SapEditWindow < LineEditWindow
             uimenu(mf, 'Label', 'New Project', 'Accelerator', 'N', 'Callback', @o.newProject);
             uimenu(mf, 'Label', 'Save Project', 'Accelerator', 'S', 'Callback', @o.saveProject);
             uimenu(mf, 'Label', 'Save As', 'Callback', @o.saveAs);
-            uimenu(mf, 'Label', 'Export', 'Callback', @o.export);
+            uimenu(mf, 'Label', 'Export k Data', 'Callback', @o.export);
             uimenu(mf, 'Label', 'Exit', 'Accelerator', 'X', 'Callback', @o.checkExit);
 
             uimenu(mh, 'Label', 'About', 'Callback', @o.helpAbout);
@@ -64,7 +62,7 @@ classdef SapEditWindow < LineEditWindow
             o.addButton('interpolateSapflow',   'interpolate SF','i',          'interpolate selected sapflow data',    2, 7, @o.interpolateSapflow);
             o.addButton('anchorBla','anchor BL',     'a',          'anchor baseline to suggested points',  3, 7, @o.anchorBla);
             o.addButton('undo',     'undo last',     'u',          'undo last command',                    2, 6, @(~,~)o.sfp.undo());
-            o.addButton('auto',     'auto BL',     'A',          'apply automatic baseline anchors',       1, 11, @(~,~)o.sfp.auto());
+            o.addButton('auto',     'auto BL',     'A',          'apply automatic baseline anchors',       1, 11, @o.autoSetBaseline);
 
             % Specify all the plot lines we'll use.
             o.lines = struct();
@@ -86,6 +84,11 @@ classdef SapEditWindow < LineEditWindow
             o.selectBox        = o.createEmptyLine('dtZoom',  'k:');
 
             o.charts.dtZoom.ButtonDownFcn = @o.selectDtArea;
+
+            ylabel(o.charts.dtZoom, 'dt');
+            ylabel(o.charts.dtFull, 'dt');
+            ylabel(o.charts.kZoom, 'k');
+            ylabel(o.charts.kFull, 'k');
 
             for name = {'bla', 'sapflow', 'spbl', 'zvbl', 'lzvbl'}
                 line = o.lines.(name{:});
@@ -114,23 +117,25 @@ classdef SapEditWindow < LineEditWindow
         end
 
         function saveProject(o, ~, ~)
+            o.startWait('Saving', o.projectConfig.numSensors + 1);
             pfa = ProjectFileAccess();
             pfa.writeConfig(o.projectConfig)
 
             for i = 1:o.projectConfig.numSensors
                 s = o.allSfp{i}.getModifications();
-                o.reportStatus('Saving Sensor %d', i);
 
+                o.updateWait('Doing sensor %d', i);
                 pfa.writeSensor(i, s);
             end
+            o.updateWait('Writing file');
             pfa.save(o.projectFilename);
-            o.reportStatus('Saved');
+            o.endWait();
         end
 
 
         function checkExit(o, ~, ~)
             if o.checkForUnsaved('exiting')
-                delete(o.figureHnd);
+                delete(o.figureHnd);  % which stops the application
             end
         end
 
@@ -186,12 +191,11 @@ classdef SapEditWindow < LineEditWindow
 
             o.closeDownCurrent();
 
-            savedPointer = o.figureHnd.Pointer;
-            o.figureHnd.Pointer = 'watch';
+            o.startWait('Loading', 1);
 
             o.readAndProcessSourceData({})
 
-            o.figureHnd.Pointer = savedPointer;
+            o.endWait();
 
             o.projectConfig.numSensors = o.projectConfig.numSensors;
 
@@ -226,10 +230,8 @@ classdef SapEditWindow < LineEditWindow
 
             o.closeDownCurrent();
 
-            savedPointer = o.figureHnd.Pointer;
-            o.figureHnd.Pointer = 'watch';
+            o.startWait('Reading Config')
 
-            o.reportStatus('Reading Config');
             o.projectFilename = fullfile(path, filename);
             o.setWindowTitle('Sapflow Tool: %s', o.projectFilename)
             try
@@ -237,7 +239,7 @@ classdef SapEditWindow < LineEditWindow
             catch err
                 if strcmp(err.identifier, 'sapflowConfig:fileError')
                     errordlg(err.message, 'Project File Error')
-                    o.figureHnd.Pointer = savedPointer;
+                    o.endWait();
                     return
                 else
                     rethrow(err);
@@ -249,7 +251,7 @@ classdef SapEditWindow < LineEditWindow
 
             o.readAndProcessSourceData(allConfig.sensors)
 
-            o.figureHnd.Pointer = savedPointer;
+            o.endWait()
 
         end
 
@@ -260,10 +262,11 @@ classdef SapEditWindow < LineEditWindow
             if not(filename)
                 return
             end
-            kLines = zeros(o.projectConfig.numSensors, o.allSfp{1}.ssL);
+            o.startWait('Exporting');
+            kLines = zeros(o.allSfp{1}.ssL, o.projectConfig.numSensors);
             for i = 1:o.projectConfig.numSensors
                 thisSfp = o.allSfp{i};
-                kLines(i,:) = thisSfp.k_line;
+                kLines(:,i) = thisSfp.k_line;
             end
             try
                 csvwrite(fullfile(path, filename), kLines);
@@ -271,19 +274,22 @@ classdef SapEditWindow < LineEditWindow
                 errordlg(err.message, 'Export failed')
             end
 
+            o.endWait();
         end
+
+
         function readAndProcessSourceData(o, sensorStates)
-            o.reportStatus('Loading Source Data');
+            o.updateWait(0.1, 'Loading Source Data');
             try
                 [~, par, vpd, sf, doy, tod] = loadRawSapflowData(o.projectConfig.sourceFilename, @o.whichYear);
             catch err
                 errordlg(err.message, 'Load of raw sapflow data failed')
                 return;
             end
-            o.reportStatus('Cleaning');
+            o.updateWait(0.2, 'Cleaning');
 
             sf = cleanRawFluxData(sf);
-            o.reportStatus('Processing PAR');
+            o.updateWait(0.3, 'Processing PAR');
             par = processPar(par, tod);
 
             [~, o.projectConfig.numSensors] = size(sf);
@@ -291,7 +297,7 @@ classdef SapEditWindow < LineEditWindow
             o.allSfp = cell(1, o.projectConfig.numSensors);
 
             for i = 1:o.projectConfig.numSensors
-                o.reportStatus('Building %d of %d', i, o.projectConfig.numSensors);
+                o.updateWait(0.3 + 0.7 * i / o.projectConfig.numSensors , 'Building %d of %d', i, o.projectConfig.numSensors);
 
                 thisSfp = SapflowProcessor(doy, tod, vpd, par, sf(:,i));
                 thisSfp.baselineCallback = @o.baselineUpdated;
@@ -305,7 +311,7 @@ classdef SapEditWindow < LineEditWindow
                 o.allSfp{i} = thisSfp;
             end
 
-            o.reportStatus('Ready');
+            o.updateWait(1, 'Ready');
 
             o.sfpI = 1;
             o.sfp = o.allSfp{o.sfpI};
@@ -544,6 +550,15 @@ classdef SapEditWindow < LineEditWindow
                 o.enableCommands({'undo'})
             end
         end
+
+
+        function autoSetBaseline(o, ~, ~)
+            o.startWait('setting baseline', 1);
+            o.sfp.auto();
+            o.endWait();
+        end
+
+
 
         function isChange = anyChangesMade(o)
             % Checks if any sensor has had changes made to it.

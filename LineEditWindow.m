@@ -16,6 +16,11 @@ classdef LineEditWindow < handle
         keys = struct(); % one to one mapping with buttons: built by addButton
 
         statusBar  % a text UI Control accessed with updateDisplay()
+
+        % A modal window that is popped up when the user must wait for an
+        % operation to complete.
+        waitBarWindow
+
     end
 
     properties (Access = protected)
@@ -188,6 +193,31 @@ classdef LineEditWindow < handle
             % arguments.
             o.figureHnd.Name = sprintf(format, varargin{:});
         end
+
+        function startWait(o, message)
+            % Create a modal window while we execute a lengthy command.
+            % This is the easy way of preventing user access to any of the
+            % controls on the main figure.
+            o.figureHnd.Pointer = 'watch';
+            drawnow();
+            o.waitBarWindow = waitbar(0, message, 'Name', 'Please wait...', 'WindowStyle', 'modal');
+        end
+
+
+        function updateWait(o, progress, format, varargin)
+            message = sprintf(format, varargin{:});
+            waitbar(progress, o.waitBarWindow, message);
+        end
+
+
+        function endWait(o)
+            % Whatever lengthy task we started has finished so remove the
+            % modal (blocking) waitbar window.
+            o.figureHnd.Pointer = 'arrow';
+            delete(o.waitBarWindow);
+
+        end
+
 
     end
 
