@@ -211,7 +211,7 @@ classdef LineEditWindow < handle
             % controls on the main figure.
             o.figureHnd.Pointer = 'watch';
             drawnow();
-            o.waitBarWindow = waitbar(0, message, 'Name', 'Please wait...', 'WindowStyle', 'modal');
+            o.waitBarWindow = waitbar(0, message, 'Name', message, 'WindowStyle', 'modal');
         end
 
 
