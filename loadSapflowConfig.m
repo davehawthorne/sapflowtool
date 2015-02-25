@@ -28,9 +28,14 @@ end
 
 function config = readProjectConfig(parent)
     node = getOnly(parent, 'ProjectConfig');
-    config.projectDesc = getNodeStringValue(node, 'ProjectName');
+    config.projectName = getNodeStringValue(node, 'ProjectName');
+    config.projectDesc = getNodeStringValue(node, 'ProjectDesc');
     config.sourceFilename = getNodeStringValue(node, 'SourceFilename');
     config.numSensors = getNodeIntegerValues(node, 'NumberSensors');
+    config.minRawValue = getNumericalValue(node, 'MinRawValue');
+    config.maxRawValue = getNumericalValue(node, 'MaxRawValue');
+    config.maxRawStep = getNumericalValue(node, 'MaxRawStep');
+    config.minRunLength = getNodeIntegerValues(node, 'MinRunLength');
 end
 
 function sensors = readSensorsData( parent)

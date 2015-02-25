@@ -188,8 +188,16 @@ classdef SapEditWindow < LineEditWindow
                 %TEMP!!! abs paths are going to be an issue
                 sourceFilename = fullfile(sourcePath, sourceFilename);
             end
-            o.projectConfig.projectDesc = inputdlg('Enter a project description', 'Project Description');
-            o.projectConfig.sourceFilename = sourceFilename;
+
+            config = defaultConfig();
+            config.sourceFilename = sourceFilename;
+            config = projectDialog(config);
+
+            if isstruct(config)
+                o.projectConfig = config;
+            else
+                return
+            end
 
             o.closeDownCurrent();
 
@@ -204,7 +212,7 @@ classdef SapEditWindow < LineEditWindow
             o.projectFilename = fullfile(path, filename);
             o.setWindowTitle('Sapflow Tool: %s', o.projectFilename)
 
-            saveProject(0, 0)
+            o.saveProject(0, 0)
 
         end
 
@@ -289,11 +297,6 @@ classdef SapEditWindow < LineEditWindow
             end
             o.updateWait(0.2, 'Cleaning');
 
-            o.projectConfig.minRawValue = 0.5;
-            o.projectConfig.maxRawValue = 30;
-            o.projectConfig.maxRawStep = 1.5;
-            o.projectConfig.minRunLength = 4;
-            %TEMP!!! sf = cleanRawFluxData(sf, config);
             o.updateWait(0.3, 'Processing PAR');
             par = processPar(par, tod);
 

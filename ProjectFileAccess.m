@@ -39,9 +39,15 @@ classdef ProjectFileAccess < handle
             % older versions of the project file and either deal with it
             % or reject it.
 
+            o.addTextElement(element, 'ProjectName', s.projectName);
+            o.addTextElement(element, 'ProjectDesc', s.projectDesc);
             o.addTextElement(element, 'SourceFilename', s.sourceFilename);
-            o.addTextElement(element, 'ProjectName', s.projectDesc);
             o.addIntegerElement(element, 'NumberSensors', s.numSensors);
+            o.addFloatElement(element, 'MinRawValue', s.minRawValue);
+            o.addFloatElement(element, 'MaxRawValue', s.maxRawValue);
+            o.addFloatElement(element, 'MaxRawStep', s.maxRawStep);
+            o.addIntegerElement(element, 'MinRunLength', s.minRunLength);
+
             o.docRootNode.appendChild(element);
         end
 
@@ -112,10 +118,19 @@ classdef ProjectFileAccess < handle
 
         function addIntegerElement(o, parent, nodeName, nodeValue)
             % Create an XML element whose value represents an integer
-            % or vector.
+            % or vector of ints.
             % E.g. nodeName == 'spbl' and nodeValue = [213, 214, 215, 216]
             % gives: <spbl>213 214 215 216</spbl>
             o.addTextElement(parent, nodeName, strtrim(sprintf('%d ', nodeValue)));
+        end
+
+
+        function addFloatElement(o, parent, nodeName, nodeValue)
+            % Create an XML element whose value represents a float
+            % or vector of floats.
+            % E.g. nodeName == 'spbl' and nodeValue = [213, 214, 215, 216]
+            % gives: <spbl>213 214 215 216</spbl>
+            o.addTextElement(parent, nodeName, strtrim(sprintf('%f ', nodeValue)));
         end
 
 
