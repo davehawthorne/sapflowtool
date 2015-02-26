@@ -32,6 +32,7 @@ classdef LineEditWindow < handle
 
     methods (Access = protected)
 
+
         function o = LineEditWindow()
             % Constructor creates the figure and places charts.
             %
@@ -75,7 +76,6 @@ classdef LineEditWindow < handle
                 'Position', o.figPosScaler .* [1 * 1.75 + 17.5, 1, 1.5+2*1.75, 0.8], ...
                 'Enable', 'Off' ...
             );
-
 
             % Install an object to handle panning and zooming of the charts.
             s.figure = o.figureHnd;
@@ -158,8 +158,6 @@ classdef LineEditWindow < handle
             % If names is empty then all commands are disabled.
             %
             % see also: enableCommands
-
-            %TEMP!!! naming inconsistent with addCommand()
             o.setCommandState(names, 'Off');
         end
 
@@ -169,7 +167,11 @@ classdef LineEditWindow < handle
             o.setCommandState(names, 'On')
         end
 
+
         function renameCommand(o, name, string)
+            % Used to change the text for a command's button and menu.
+            % For example to update an undo button to indicate the last action
+            % to undo.
             if isfield(o.buttons, name)
                 o.buttons.(name).String = string;
             end
@@ -187,6 +189,7 @@ classdef LineEditWindow < handle
 
 
         function disableChartsControl(o)
+            % Stop the user from zooming etc.
             for name = fieldnames(o.charts)'
                 o.charts.(name{1}).PickableParts = 'none';
             end
@@ -194,16 +197,19 @@ classdef LineEditWindow < handle
 
 
         function enableChartsControl(o)
+            % Allow user control of the charts, now that there's valid data.
             for name = fieldnames(o.charts)'
                 o.charts.(name{1}).PickableParts = 'visible';
             end
         end
+
 
         function setWindowTitle(o, format, varargin)
             % Sets the text at the top of the window.  Accepts printf()
             % arguments.
             o.figureHnd.Name = sprintf(format, varargin{:});
         end
+
 
         function startWait(o, message)
             % Create a modal window while we execute a lengthy command.
@@ -216,6 +222,9 @@ classdef LineEditWindow < handle
 
 
         function updateWait(o, progress, format, varargin)
+            % Our lengthy process is progressing.  Update the waitbar dialog
+            % with progress (a value 0.0 to 1.0) and some text (with printf()
+            % format and parameters).
             message = sprintf(format, varargin{:});
             waitbar(progress, o.waitBarWindow, message);
         end
@@ -234,7 +243,10 @@ classdef LineEditWindow < handle
 
     methods (Access = private)
 
+
         function setCommandState(o, names, state)
+            % Used to enable or disable commands.  If cell array of names,
+            % 'names' is empty then all commands are enabled/disabled.
             if isempty(names)
                 % select all
                 names = fieldnames(o.keys)';
@@ -250,6 +262,7 @@ classdef LineEditWindow < handle
                 end
             end
         end
+
 
         function handleKeypress(o, ~, event)
             % Callback for any keypress event.
@@ -273,6 +286,7 @@ classdef LineEditWindow < handle
                 fprintf('Unhandled key: "%s"\n', key);
             end
         end
+
 
         function a = makeChart(o, pos)
             % Helper function used by constructor.

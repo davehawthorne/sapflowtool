@@ -32,6 +32,7 @@ classdef SapflowProcessor < handle
         ka_line
         nvpd
 
+        % Store our configuration in this structure.
         config
     end
 
@@ -58,6 +59,7 @@ classdef SapflowProcessor < handle
     end
 
     methods
+
 
         function o = SapflowProcessor(doy, tod, vpd, par, ss, config)
             % Constructor just stores the passed values.
@@ -92,6 +94,12 @@ classdef SapflowProcessor < handle
 
 
         function cleanRawData(o)
+            % Cleans the raw sapflow data according to the config settings.
+            % Note that this doesn't get logged in the undo stack.  It would
+            % only be called for new projects, and the project would be saved
+            % before any further modifications.
+            % So, either this or setModifications() is called directly after
+            % constructing the object.
             o.ss = cleanRawFluxData(o.ss, o.config);
         end
 
@@ -104,7 +112,9 @@ classdef SapflowProcessor < handle
 
 
         function s = getModifications(o)
-            %
+            % Return a structure detailing all the changes made to the data in
+            % this object.  This structure is saved into the project file.
+            % Resets the undo stack.  %TEMP!!! should probably do this separately after the project has saved successfully.
             s.bla = o.bla;
             s.spbl = o.spbl;
             s.zvbl = o.zvbl;
@@ -128,7 +138,11 @@ classdef SapflowProcessor < handle
 
         end
 
+
         function setModifications(o, s)
+            % Reads the set of modifications made to the raw data and applies
+            % them.  These will be read from the project file.  Resets the undo
+            % stack.
             o.bla = s.bla;
             o.spbl = s.spbl;
             o.zvbl = s.zvbl;
@@ -145,6 +159,7 @@ classdef SapflowProcessor < handle
             o.emptyUndoStack();
 
         end
+
 
         function undo(o)
             % Each editing command can be undone one at a time.
@@ -183,6 +198,7 @@ classdef SapflowProcessor < handle
             o.baselineCallback();
         end
 
+
         function delBaselineAnchors(o, i)
             % Delete the baseline anchor points with the index values i
             % i is a 1xN vector.
@@ -205,6 +221,7 @@ classdef SapflowProcessor < handle
             % This command can be undone.
             o.modifySapflow(regions, @o.delSapflowSegment, 'delete sapflow data')
         end
+
 
         function interpolateSapflow(o, regions)
             % The same as delSapflow() except that the sapflow changes
@@ -237,7 +254,6 @@ classdef SapflowProcessor < handle
                 o.vpd, o.config.vpdThresh, o.config.vpdTime ...
             );
 
-
             o.spbl = oneByN(mySpbl);  %TEMP!!! there must be a nicer way of ensuring 1xN shape.
             o.zvbl = oneByN(myZvbl);
             o.lzvbl = oneByN(myLzvbl);
@@ -259,6 +275,7 @@ classdef SapflowProcessor < handle
             o.baselineCallback();
         end
 
+
         function compute(o)
             % Based on the sapflow, bla and VPD data, calculate the K, KA
             % and NVPD values.
@@ -275,9 +292,11 @@ classdef SapflowProcessor < handle
             o.nvpd = o.vpd ./ max(o.vpd) .* max(o.ka_line);
         end
 
+
     end
 
     methods (Access = private)
+
 
         function undoBaselineChange(o, args)
             % Restore the baseline anchor values which were saved prior to
@@ -306,11 +325,13 @@ classdef SapflowProcessor < handle
             o.baselineCallback();
         end
 
+
         function delSapflowSegment(o, ts, te)
             % Callback for modifySapflow().  All sapflow data in the ts to
             % te range are discarded.
             o.ss(ts:te) = NaN;
         end
+
 
         function interpSapflowSegment(o, ts, te)
             % Callback for modifySapflow().  A little more involved than
@@ -322,6 +343,7 @@ classdef SapflowProcessor < handle
             end
             o.ss(ts:te) = interp1([ts, te], o.ss([ts,te]), ts:te);
         end
+
 
         function modifySapflow(o, regions, segmentCallback, message)
             % Does the heavy lifting for interpolateSapflow() and
@@ -369,6 +391,7 @@ classdef SapflowProcessor < handle
             o.baselineCallback();
         end
 
+
         function pushCommand(o, description, callback, params)
             % With each command executed we record what's done so it can be
             % undeleted if necessary.  A callback is invoked which might be
@@ -386,10 +409,13 @@ classdef SapflowProcessor < handle
             end
         end
 
+
         function emptyUndoStack(o)
+            % Wipe the undo history.  Done when we we load or save changes.
             o.cmdStack = Stack(); % start a new stack
             o.undoCallback(0);  % report up that the stack is empty.
         end
+
 
     end
 

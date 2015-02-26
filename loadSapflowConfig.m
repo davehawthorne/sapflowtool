@@ -41,6 +41,7 @@ function config = readProjectConfig(parent)
     config.vpdTime = getNodeFloatValues(node, 'VpdTime', 1);
 end
 
+
 function sensors = readSensorsData( parent)
 
     nodes = parent.getElementsByTagName('Sensor');
@@ -82,6 +83,7 @@ function sensors = readSensorsData( parent)
     end
 end
 
+
 function child = getOnly(parent, nodeName)
     children = parent.getElementsByTagName(nodeName);
     if children.getLength() ~= 1
@@ -89,6 +91,7 @@ function child = getOnly(parent, nodeName)
     end
     child = children.item(0);
 end
+
 
 function value = getIntegerAttribute(parent, attrName)
     if not(parent.hasAttribute(attrName))
@@ -102,6 +105,7 @@ function value = getIntegerAttribute(parent, attrName)
     end
 end
 
+
 function value = getNumericalValue(node)
     value = str2num(node.getTextContent()); %#ok<ST2NM>
 end
@@ -113,6 +117,7 @@ function values = getNodeIntegerValues(parent, nodeName, maxCount)
         throw(MException('sapflowConfig:fileError', 'Expected integers for node "%s", not floats', nodeName));
     end
 end
+
 
 function values = getNodeFloatValues(parent, nodeName, maxCount)
     node = getOnly(parent, nodeName);

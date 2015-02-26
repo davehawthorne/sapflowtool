@@ -1,7 +1,8 @@
-%%
-% doy and tod (day of year + time of day) might be dumped
 function [yearNum, par, vpd, sapflow, doy, tod] = loadRawSapflowData(filename)
-
+    % Reads sapflow and other data from the specified file
+    %TEMP!!! currently what data is in which column is hardcoded
+    %TEMP!!!  doy and tod (day of year + time of day) might be dumped
+    %TEMP!!! there's no error handling for missing files, bad data etc.
     raw = load(filename);
 
     [~, numCols] = size(raw);
@@ -20,9 +21,12 @@ function [yearNum, par, vpd, sapflow, doy, tod] = loadRawSapflowData(filename)
     % the 'feature' might be deprecated in future.
     sampleTime = datetime(yearNum, 1, dayOfYear, hour, minute, 0);
 
-    timeSteps = sampleTime(2:end) - sampleTime(1:end-1);
+    % Check that the time step is uniform.
+    timeSteps = sampleTime(2:end) - sampleTime(1:end-1);       %TEMP!!! just use MATLAB's diff()
+
     interval = unique(timeSteps);
     if length(interval) ~= 1
+        % There's more than one amount that neighbouring times change by...
         intervalList = sprintf('%d ', minutes(interval));
         throw(MException('sapflowData:fileError','Inconsistent sample intervals (%s minutes)', intervalList))
     end
